@@ -57,7 +57,7 @@
     "open": "11.0.0",
     "openai": "6.49.0",
     "ora": "9.4.1",
-    "yaml": "2.8.4"
+    "yaml": "2.9.0"
   },
   "allowScripts": {
     "unrs-resolver@1.11.1": true
