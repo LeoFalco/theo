@@ -3,6 +3,9 @@
 import chalk from 'chalk'
 import chalkTable from 'chalk-table'
 import { $ } from '../../core/exec.js'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
 
 const ORG = 'FieldControl'
 const ADMIN = 'admin'
@@ -40,7 +43,40 @@ class ReposCommand {
     rows.sort(bySeverityDesc)
 
     printTable(rows)
+
+    const previous = await readPreviousTotals()
+    const totals = sumTotals(rows)
+    printSummary(totals, previous)
+
+    const anyFailed = rows.some((row) => row.failed)
+    if (!anyFailed) {
+      await writePreviousTotals(totals)
+    } else {
+      console.log('')
+      console.log(chalk.dim('Snapshot nao atualizado: alguma consulta ao Dependabot falhou.'))
+    }
   }
+}
+
+/**
+ * Imprime o resumo de vulnerabilidades por severidade e o total, com o delta
+ * em relacao ao ultimo run integro. Mostra sempre as 4 severidades, mesmo em 0.
+ * @param {{ total: number, critical: number, high: number, medium: number, low: number }} totals
+ * @param {{ total: number, critical: number, high: number, medium: number, low: number } | null} previous
+ */
+function printSummary (totals, previous) {
+  console.log('')
+  console.log(chalk.cyan('Vulnerabilidades (total):'))
+
+  for (const { key, color } of SEVERITIES) {
+    const delta = formatDelta(totals[key], previous?.[key])
+    console.log(`  ${color(key.padEnd(8))} ${totals[key]}${delta}`)
+  }
+
+  const totalDelta = formatDelta(totals.total, previous?.total)
+  console.log(
+    `  ${chalk.bold('total'.padEnd(8))} ${chalk.bold(totals.total)}${totalDelta}`
+  )
 }
 
 /**
@@ -65,19 +101,84 @@ async function fetchMergeableRepos () {
 }
 
 /**
- * Enriquece a linha do repositório com a contagem de vulnerabilidades.
- * Só consulta o Dependabot quando o usuário é admin (a API exige esse acesso).
- * Mantém `counts` na linha para permitir a ordenação por severidade.
+ * Enriquece a linha do repositorio com a contagem de vulnerabilidades.
+ * So consulta o Dependabot quando o usuario e admin (a API exige esse acesso).
+ * Mantem `counts` na linha para permitir a ordenacao por severidade e a
+ * agregacao final; `failed` sinaliza falha de API para nao gravar o snapshot.
  * @param {{ repo: string, permission: string }} row
- * @returns {Promise<{ repo: string, permission: string, counts: Record<string, number> | null, vulnerabilities: string }>}
+ * @returns {Promise<{ repo: string, permission: string, counts: Record<string, number> | null, failed: boolean, vulnerabilities: string }>}
  */
 async function withVulnerabilities (row) {
   if (row.permission !== ADMIN) {
-    return { ...row, counts: null, vulnerabilities: chalk.dim('-') }
+    return { ...row, counts: null, failed: false, vulnerabilities: chalk.dim('-') }
   }
 
-  const counts = await countVulnerabilities(row.repo)
-  return { ...row, counts, vulnerabilities: formatVulnerabilities(counts) }
+  const { counts, failed } = await countVulnerabilities(row.repo)
+  return { ...row, counts, failed, vulnerabilities: formatVulnerabilities(counts) }
+}
+
+/**
+ * Agrega os counts por severidade das linhas com dados disponiveis.
+ * Linhas sem counts (sem admin ou Dependabot desligado) sao ignoradas.
+ * @param {Array<{ counts: Record<string, number> | null }>} rows
+ * @returns {{ total: number, critical: number, high: number, medium: number, low: number }}
+ */
+export function sumTotals (rows) {
+  const totals = { total: 0, critical: 0, high: 0, medium: 0, low: 0 }
+
+  for (const row of rows) {
+    if (!row.counts) continue
+    totals.total += row.counts.total || 0
+    for (const { key } of SEVERITIES) {
+      totals[key] += row.counts[key] || 0
+    }
+  }
+
+  return totals
+}
+
+/**
+ * Formata a variacao de um valor em relacao ao run anterior.
+ * Retorna string vazia quando nao ha baseline ou quando nada mudou.
+ * @param {number} current
+ * @param {number | null | undefined} previous
+ * @returns {string}
+ */
+export function formatDelta (current, previous) {
+  if (previous === null || previous === undefined) return ''
+
+  const diff = current - previous
+  if (diff === 0) return ''
+  if (diff > 0) return chalk.green(` (+${diff})`)
+  return chalk.red(` (-${Math.abs(diff)})`)
+}
+
+export const SNAPSHOT_PATH = join(homedir(), '.config', 'fc-tools', 'repos-vulnerabilities.json')
+
+/**
+ * Le o snapshot de totais do ultimo run integro.
+ * Retorna null quando o arquivo nao existe ou esta corrompido.
+ * @returns {Promise<{ total: number, critical: number, high: number, medium: number, low: number } | null>}
+ */
+export async function readPreviousTotals () {
+  try {
+    const content = await readFile(SNAPSHOT_PATH, { encoding: 'utf8' })
+    const parsed = JSON.parse(content)
+    if (parsed && typeof parsed.total === 'number') return parsed
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Grava os totais do run atual como novo snapshot.
+ * @param {{ total: number, critical: number, high: number, medium: number, low: number }} totals
+ * @returns {Promise<void>}
+ */
+export async function writePreviousTotals (totals) {
+  await mkdir(dirname(SNAPSHOT_PATH), { recursive: true })
+  await writeFile(SNAPSHOT_PATH, JSON.stringify(totals))
 }
 
 /**
@@ -100,19 +201,23 @@ function bySeverityDesc (a, b) {
 }
 
 /**
- * Conta os Dependabot alerts abertos de um repositório, agrupados por severidade.
- * Retorna null quando o Dependabot está desabilitado ou o repo não é acessível.
+ * Conta os Dependabot alerts abertos de um repositorio, agrupados por severidade.
+ * Diferencia "sem dados" (Dependabot desligado / sem acesso: 404 ou 403) de
+ * "falha de API" (rede, 5xx, rate limit), para nao envenenar a baseline.
  * @param {string} repo
- * @returns {Promise<Record<string, number> | null>}
+ * @returns {Promise<{ counts: Record<string, number> | null, failed: boolean }>}
  */
 async function countVulnerabilities (repo) {
-  const result = /** @type {{ success: boolean, stdout: string | undefined }} */ (await $(`gh api --paginate /repos/${ORG}/${repo}/dependabot/alerts?state=open&per_page=100`, {
+  const result = /** @type {{ success: boolean, stdout: string | undefined, stderr: string | undefined }} */ (await $(`gh api --paginate /repos/${ORG}/${repo}/dependabot/alerts?state=open&per_page=100`, {
     loading: false,
     reject: false,
     returnProperty: 'all'
   }))
 
-  if (!result.success) return null
+  if (!result.success) {
+    const noData = /HTTP (404|403)/.test(result.stderr || '')
+    return { counts: null, failed: !noData }
+  }
 
   const alerts = safeParseArray(result.stdout)
   /** @type {Record<string, number>} */
@@ -120,7 +225,7 @@ async function countVulnerabilities (repo) {
   for (const { key } of SEVERITIES) {
     counts[key] = alerts.filter((alert) => alert?.security_advisory?.severity === key).length
   }
-  return counts
+  return { counts, failed: false }
 }
 
 /**

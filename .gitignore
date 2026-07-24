@@ -25,3 +25,7 @@ typings/
 .DS_Store
 
 data
+
+docs/superpowers/specs
+docs/superpowers/plans
+.superpowers
