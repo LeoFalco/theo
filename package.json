@@ -8,7 +8,7 @@
     "field": "src/index.js"
   },
   "scripts": {
-    "test": "node --test test/**/*.spec.js",
+    "test": "node --test",
     "lint": "npx eslint . --cache",
     "lint:fix": "npx eslint . --fix --cache",
     "updates:check": "npx npm-check-updates",

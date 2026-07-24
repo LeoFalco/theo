@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm test                    # Run all tests (node --test)
-npm test test/path/file.spec.js  # Run a single test file
+node --test test/path/file.test.js  # Run a single test file
 npm run lint                # Lint with ESLint
 npm run lint:fix            # Auto-fix lint issues
 ```
