@@ -1,6 +1,6 @@
 // @ts-check
 
-import { execaCommand as exec } from 'execa'
+import { execa, parseCommandString } from 'execa'
 import ora from 'ora'
 
 import chalk from 'chalk'
@@ -35,7 +35,9 @@ export async function $ (command, options) {
     console.log(gray('>'), command)
   }
 
-  const result = await exec(command, {
+  const [file, ...commandArguments] = parseCommandString(command)
+
+  const result = await execa(file, commandArguments, {
     cleanup: true,
     cwd: options.cwd,
     reject: options.reject,
