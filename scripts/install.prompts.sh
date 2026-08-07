@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source_dir="$HOME/.fc-tools/prompts"
+source_dir="$HOME/.theo/prompts"
 target_dir="$HOME/.gemini/antigravity/global_workflows"
 
 mkdir -p "$(dirname "$target_dir")"

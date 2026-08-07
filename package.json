@@ -1,11 +1,11 @@
 {
-  "name": "fc-tools",
+  "name": "theo",
   "version": "1.0.0",
   "description": "Kit com ferramentas e scripts para fluxos de trabalhos de desenvolvedores da field control",
   "main": "src/index.js",
   "type": "module",
   "bin": {
-    "field": "src/index.js"
+    "theo": "src/index.js"
   },
   "scripts": {
     "test": "node --test",
@@ -17,7 +17,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LeoFalco/fc-tools.git"
+    "url": "git+https://github.com/LeoFalco/theo.git"
   },
   "keywords": [
     "cli",
@@ -27,9 +27,9 @@
   "author": "leonardo.falco@outlook.com",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/LeoFalco/fc-tools/issues"
+    "url": "https://github.com/LeoFalco/theo/issues"
   },
-  "homepage": "https://github.com/LeoFalco/fc-tools#readme",
+  "homepage": "https://github.com/LeoFalco/theo#readme",
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@stylistic/eslint-plugin": "5.10.0",

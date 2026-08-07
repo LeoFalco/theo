@@ -32,4 +32,4 @@ description: Git workflow specialist. Adds, commits, creates branch, and opens P
 
 
 4. **Finalização**:
-* Execute o comando: `field pr-create --branch <branch-name> --message "<commit-message>" --body-file pr-body.md`.
+* Execute o comando: `theo pr-create --branch <branch-name> --message "<commit-message>" --body-file pr-body.md`.

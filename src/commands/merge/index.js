@@ -109,7 +109,7 @@ class PrMergeCommand {
       console.log()
       console.log(dim('Links:'))
       console.log(`  ${dim('flux:')} https://app.fluxcontrol.com.br/#/fluxo/b23ec9c8-8aeb-471a-8b2f-cd1af4f5e73e?view_mode=table`)
-      console.log(`  ${dim('jobs:')} field merged --from=today --to=today --team=GRID`)
+      console.log(`  ${dim('jobs:')} theo merged --from=today --to=today --team=GRID`)
 
       const everyCardMoved = cards.every(card => card.moved === true)
       if (everyCardMoved) {

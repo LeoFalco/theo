@@ -15,8 +15,8 @@ class RebaseCommand {
   }
 
   async action () {
-    const gitDir = `${process.env.HOME}/.fc-tools/.git`
-    const workTree = `${process.env.HOME}/.fc-tools`
+    const gitDir = `${process.env.HOME}/.theo/.git`
+    const workTree = `${process.env.HOME}/.theo`
     const format = '%H%n%an%n%ad%n%s' // hash \n author \n date \n message
 
     const lastCommit = await $(`git --git-dir ${gitDir} --work-tree ${workTree} log -n 1 --format=${format} --date=iso`)
