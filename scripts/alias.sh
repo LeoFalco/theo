@@ -1,9 +1,9 @@
-function field () {
-  nvm use $(cat ~/.fc-tools/.nvmrc) >> /dev/null
-  node --no-warnings ~/.fc-tools $@
+function theo () {
+  nvm use $(cat ~/.theo/.nvmrc) >> /dev/null
+  node --no-warnings ~/.theo $@
   nvm use &> /dev/null
 }
 
-function field-update () {
-  curl https://raw.githubusercontent.com/LeoFalco/fc-tools/master/scripts/install.sh -s | sh
+function theo-update () {
+  curl https://raw.githubusercontent.com/LeoFalco/theo/master/scripts/install.sh -s | sh
 }

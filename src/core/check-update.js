@@ -19,7 +19,7 @@ export async function checkUpdate () {
   if (currentSha === latestSha) return
 
   warn('There is a new version available.')
-  warn('Please run \'field-update\' to update.')
+  warn('Please run \'theo-update\' to update.')
 }
 
 async function isUpdateCheckedToday () {

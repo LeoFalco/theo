@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`fc-tools` is an ESM Node.js CLI toolkit (`field` binary) for Field Control developer workflows. It automates Git operations, GitHub PR management, and integration with the Flux project management tool.
+`theo` is an ESM Node.js CLI toolkit (`theo` binary) for Field Control developer workflows. It automates Git operations, GitHub PR management, and integration with the Flux project management tool.
 
 ## Commands
 
@@ -15,7 +15,7 @@ npm run lint                # Lint with ESLint
 npm run lint:fix            # Auto-fix lint issues
 ```
 
-The CLI itself is run via `field <command>` after installation, or directly with `node src/index.js <command>` during development.
+The CLI itself is run via `theo <command>` after installation, or directly with `node src/index.js <command>` during development.
 
 ## Architecture
 

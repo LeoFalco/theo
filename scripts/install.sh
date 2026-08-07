@@ -1,29 +1,48 @@
 #! usr/bin/sh
 
-echo "▷ Installing fc-tools..."
+echo "▷ Installing theo..."
 
-# if fc-tools directory not exists
-if [ ! -d ~/.fc-tools ]; then
-  echo "▷ Cloning fc-tools..."
-  git clone https://github.com/LeoFalco/fc-tools.git ~/.fc-tools --depth 1
-  echo "▷ Cloned fc-tools."
+# migrate from the old fc-tools installation
+migrate_rc_file() {
+  rc_file=$1
+  [ -f "$rc_file" ] || return 0
+  if grep -q "\.fc-tools" "$rc_file"; then
+    echo "▷ Removing old fc-tools entries from $rc_file..."
+    sed -i.bak '/\.fc-tools/d' "$rc_file"
+    echo "▷ Removed old fc-tools entries from $rc_file (backup at $rc_file.bak)."
+  fi
+}
+
+migrate_rc_file ~/.bashrc
+migrate_rc_file ~/.zshrc
+migrate_rc_file ~/.config/fish/config.fish
+
+if [ -d ~/.fc-tools ]; then
+  echo "▷ The old ~/.fc-tools directory is no longer used and can be removed with 'rm -rf ~/.fc-tools'."
+fi
+
+# if theo directory not exists
+if [ ! -d ~/.theo ]; then
+  echo "▷ Cloning theo..."
+  git clone https://github.com/LeoFalco/theo.git ~/.theo --depth 1
+  echo "▷ Cloned theo."
 else
-  echo "▷ fc-tools already cloned."
-  cd ~/.fc-tools
-  echo "▷ Updating fc-tools..."
+  echo "▷ theo already cloned."
+  cd ~/.theo
+  echo "▷ Updating theo..."
 
   git fetch --all >> /dev/null
   git reset --hard origin/master
   git pull
 
-  echo "▷ Updated fc-tools."
+  echo "▷ Updated theo."
   cd - >> /dev/null
 fi
 
 . ~/.nvm/nvm.sh
-nvm use $(cat ~/.fc-tools/.nvmrc) || nvm install $(cat ~/.fc-tools/.nvmrc)
+nvm use $(cat ~/.theo/.nvmrc) || nvm install $(cat ~/.theo/.nvmrc)
 
-cd ~/.fc-tools
+cd ~/.theo
 echo "▷ Installing dependencies..."
 npm install >> /dev/null
 echo "▷ Installed dependencies."
@@ -32,36 +51,35 @@ git reset --hard >> /dev/null
 cd - >> /dev/null
 
 if [ -f ~/.bashrc ]; then
-  if ! grep -q "fc-tools" ~/.bashrc; then
-    echo "▷ Adding fc-tools to bashrc..."
-    echo "\nsource ~/.fc-tools/scripts/alias.sh" >> ~/.bashrc
-    echo "▷ Added fc-tools to bashrc."
+  if ! grep -q "\.theo" ~/.bashrc; then
+    echo "▷ Adding theo to bashrc..."
+    echo "\nsource ~/.theo/scripts/alias.sh" >> ~/.bashrc
+    echo "▷ Added theo to bashrc."
   else
-    echo "▷ fc-tools already added to bashrc."
+    echo "▷ theo already added to bashrc."
   fi
 fi
 
 if [ -f ~/.zshrc ]; then
-  if ! grep -q "fc-tools" ~/.zshrc; then
-    echo "▷ Adding fc-tools to zshrc..."
+  if ! grep -q "\.theo" ~/.zshrc; then
+    echo "▷ Adding theo to zshrc..."
     echo
-    echo "\nsource ~/.fc-tools/scripts/alias.sh" >> ~/.zshrc
-    echo "▷ Added fc-tools to zshrc."
+    echo "\nsource ~/.theo/scripts/alias.sh" >> ~/.zshrc
+    echo "▷ Added theo to zshrc."
   else
-    echo "▷ fc-tools already added to zshrc."
+    echo "▷ theo already added to zshrc."
   fi
 fi
 
 if [ -f ~/.config/fish/config.fish ]; then
-  if ! grep -q "fc-tools" ~/.config/fish/config.fish; then
-    echo "▷ Adding fc-tools to fish..."
-    echo "\nsource ~/.fc-tools/scripts/alias.fish.sh" >> ~/.config/fish/config.fish
-    echo "▷ Added fc-tools to fish."
+  if ! grep -q "\.theo" ~/.config/fish/config.fish; then
+    echo "▷ Adding theo to fish..."
+    echo "\nsource ~/.theo/scripts/alias.fish.sh" >> ~/.config/fish/config.fish
+    echo "▷ Added theo to fish."
   else
-    echo "▷ fc-tools already added to fish."
+    echo "▷ theo already added to fish."
   fi
 fi
 
-echo "▷ fc-tools installed."
-echo "▷ Restart your terminal to use fc-tools."
-
+echo "▷ theo installed."
+echo "▷ Restart your terminal to use theo."

@@ -153,7 +153,7 @@ export function formatDelta (current, previous) {
   return chalk.red(` (-${Math.abs(diff)})`)
 }
 
-export const SNAPSHOT_PATH = join(homedir(), '.config', 'fc-tools', 'repos-vulnerabilities.json')
+export const SNAPSHOT_PATH = join(homedir(), '.config', 'theo', 'repos-vulnerabilities.json')
 
 /**
  * Le o snapshot de totais do ultimo run integro.

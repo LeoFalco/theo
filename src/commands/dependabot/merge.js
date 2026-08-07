@@ -206,7 +206,7 @@ async function approvePr (owner, repoName, prNumber) {
     repo: repoName,
     pull_number: prNumber,
     event: 'APPROVE',
-    body: '✅ Auto-approved by fc-tools dependabot merge (low risk)'
+    body: '✅ Auto-approved by theo dependabot merge (low risk)'
   })
 }
 

@@ -1,4 +1,4 @@
-# FC Tools
+# Theo
 
 Kit com ferramentas e scripts para fluxos de trabalhos de desenvolvedores da field control
 
@@ -21,9 +21,9 @@ Siga as instruções no terminal até completar o login
 **Instalação com script de uma linha**
 
   ```sh
-  curl https://raw.githubusercontent.com/LeoFalco/fc-tools/master/scripts/install.sh -s | sh
+  curl https://raw.githubusercontent.com/LeoFalco/theo/master/scripts/install.sh -s | sh
   ```
 
 ## Resumo dos comandos disponíveis
 
-- `field --help` mostra ajuda e lista comandos disponíveis
+- `theo --help` mostra ajuda e lista comandos disponíveis
