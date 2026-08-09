@@ -40,6 +40,7 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 - **`merge`** — Core command. Without `--flux`: merges the current branch's PR using `gh pr merge` with fallback strategies (normal → auto → admin). With `--flux`: fetches cards from the Flux "PUBLISH" stage, shows their PRs with readiness checks, merges them, and moves cards to "MERGED" stage.
 - **`rebase`** — Rebases current branch on the default branch; optionally force-pushes (`-p`).
 - **`pr-create`** — Creates a PR from the current branch. Reads `.github/pull_request_template.md` and `.github/workflows/fieldnews.yml` from the target repo to infer PR title prefixes.
+- **`pr view`** — Shows the pull request of the current branch. Detects the forge from the `origin` url (`src/commands/pr/remote.js`): GitHub is delegated to `gh pr view`, Azure DevOps is queried through `az repos pr list` and rendered locally.
 
 ## Code Style
 
@@ -47,4 +48,4 @@ ESLint with `neostandard` — no semicolons, 2-space indentation, single quotes.
 
 ## External Dependencies
 
-The tool requires `gh` (GitHub CLI) authenticated via `gh auth login` and Git to be available in PATH. The Flux integration uses a hardcoded JWT token in `flux-client.js`.
+The tool requires `gh` (GitHub CLI) authenticated via `gh auth login` and Git to be available in PATH. The Flux integration uses a hardcoded JWT token in `flux-client.js`. Commands that touch Azure DevOps repositories additionally require the Azure CLI (`az`) with the `azure-devops` extension, authenticated via `az login`.
