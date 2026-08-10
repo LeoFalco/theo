@@ -3,11 +3,12 @@
 import chalk from 'chalk'
 import chalkTable from 'chalk-table'
 import { $ } from '../../core/exec.js'
+import { GITHUB_ORG } from '../../core/env.js'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-const ORG = 'FieldControl'
+const ORG = GITHUB_ORG
 const ADMIN = 'admin'
 
 // Severidades do Dependabot da mais grave para a menos grave.
@@ -27,7 +28,7 @@ class ReposCommand {
   install ({ program }) {
     program
       .command('repos')
-      .description('list fieldcontrol repositories you can merge into')
+      .description(`list ${ORG} repositories you can merge into`)
       .action(this.action.bind(this))
   }
 
