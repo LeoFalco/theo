@@ -1,6 +1,6 @@
 # Theo
 
-Kit com ferramentas e scripts para fluxos de trabalhos de desenvolvedores da field control
+Kit com ferramentas e scripts para fluxos de trabalho de desenvolvedores
 
 ## Instalação
 

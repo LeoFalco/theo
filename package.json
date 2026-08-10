@@ -1,7 +1,7 @@
 {
   "name": "theo",
   "version": "1.0.0",
-  "description": "Kit com ferramentas e scripts para fluxos de trabalhos de desenvolvedores da field control",
+  "description": "Kit com ferramentas e scripts para fluxos de trabalho de desenvolvedores",
   "main": "src/index.js",
   "type": "module",
   "bin": {
@@ -22,7 +22,8 @@
   "keywords": [
     "cli",
     "scripts",
-    "field-control"
+    "git",
+    "github"
   ],
   "author": "leonardo.falco@outlook.com",
   "license": "MIT",
