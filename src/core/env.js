@@ -11,5 +11,17 @@ dotEnv.config({
 })
 
 // Organização do GitHub usada nas consultas de PRs, checks e repositórios.
-// Configurável via .env para permitir o uso do theo fora da FieldControl.
-export const GITHUB_ORG = process.env.GITHUB_ORG || 'FieldControl'
+// Obrigatoriamente configurada via .env, sem valor padrão. Veja .env.example.
+export const GITHUB_ORG = process.env.GITHUB_ORG
+
+/**
+ * Retorna a organização configurada ou falha com uma mensagem acionável.
+ * @returns {string}
+ */
+export function requireGithubOrg () {
+  if (!GITHUB_ORG) {
+    throw new Error('GITHUB_ORG não configurada. Defina GITHUB_ORG no arquivo .env na raiz do projeto (veja .env.example).')
+  }
+
+  return GITHUB_ORG
+}

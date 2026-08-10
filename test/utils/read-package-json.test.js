@@ -8,5 +8,5 @@ test('should read the package.json file and return tests content as a JSON objec
   const result = await readPackageJSON()
   assert.equal(result.name, 'theo')
   assert.equal(result.version, '1.0.0')
-  assert.equal(result.description, 'Kit com ferramentas e scripts para fluxos de trabalhos de desenvolvedores da field control')
+  assert.equal(result.description, 'Kit com ferramentas e scripts para fluxos de trabalho de desenvolvedores')
 })

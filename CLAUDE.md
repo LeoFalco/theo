@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`theo` is an ESM Node.js CLI toolkit (`theo` binary) for Field Control developer workflows. It automates Git operations, GitHub PR management, and integration with the Flux project management tool.
+`theo` is an ESM Node.js CLI toolkit (`theo` binary) for developer workflows. It automates Git operations, GitHub PR management, and integration with the Flux project management tool.
 
 ## Commands
 
@@ -28,7 +28,7 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 - **`src/core/exec.js`** — The `$()` helper wraps `execa` for running shell commands. Key options: `json: true` parses stdout as JSON, `returnProperty: 'all'` returns `{ exitCode, success, stdout, stderr }`, `reject: false` prevents throwing on non-zero exit, `loading: false` suppresses the spinner.
 - **`src/core/githubFacade.js`** — Octokit-based GitHub GraphQL + REST client. Handles PR queries (with checks, reviews, labels), branch comparison, and PR updates (rebase/update branch).
 - **`src/core/constants.js`** — Team member lists organized by team (CMMS, FSM, QUALITY). Adding/removing members here affects all commands that filter by team.
-- **`src/core/env.js`** — Loads the repo-root `.env` (via dotenv) and exports config read from it. `GITHUB_ORG` is the GitHub organization queried by `repos`, `opened` and `merged` (defaults to `FieldControl`). See `.env.example`.
+- **`src/core/env.js`** — Loads the repo-root `.env` (via dotenv) and exports config read from it. `GITHUB_ORG` is the GitHub organization queried by `repos`, `opened` and `merged`; it has no default, so use `requireGithubOrg()` at call sites to fail with an actionable message when it is unset. See `.env.example`.
 - **`src/core/patch-console-log.js`** — Provides `error`, `info`, `warn` helpers with colored prefixes.
 
 ### Services

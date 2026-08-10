@@ -3,12 +3,11 @@
 import chalk from 'chalk'
 import chalkTable from 'chalk-table'
 import { $ } from '../../core/exec.js'
-import { GITHUB_ORG } from '../../core/env.js'
+import { requireGithubOrg } from '../../core/env.js'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-const ORG = GITHUB_ORG
 const ADMIN = 'admin'
 
 // Severidades do Dependabot da mais grave para a menos grave.
@@ -28,7 +27,7 @@ class ReposCommand {
   install ({ program }) {
     program
       .command('repos')
-      .description(`list ${ORG} repositories you can merge into`)
+      .description('list organization repositories you can merge into')
       .action(this.action.bind(this))
   }
 
@@ -36,7 +35,7 @@ class ReposCommand {
     const mergeableRepos = await fetchMergeableRepos()
 
     if (mergeableRepos.length === 0) {
-      console.log(chalk.yellow(`Nenhum repositório da org ${ORG} com permissão de merge`))
+      console.log(chalk.yellow(`Nenhum repositório da org ${requireGithubOrg()} com permissão de merge`))
       return
     }
 
@@ -86,6 +85,8 @@ function printSummary (totals, previous) {
  * @returns {Promise<Array<{ repo: string, permission: string }>>}
  */
 async function fetchMergeableRepos () {
+  const org = requireGithubOrg()
+
   const repos = await $('gh api --paginate /user/repos?affiliation=organization_member', {
     json: true,
     loading: false
@@ -93,7 +94,7 @@ async function fetchMergeableRepos () {
 
   return (repos || [])
     // @ts-ignore
-    .filter((repo) => repo.owner?.login?.toLowerCase() === ORG.toLowerCase())
+    .filter((repo) => repo.owner?.login?.toLowerCase() === org.toLowerCase())
     // @ts-ignore
     .filter((repo) => canMerge(repo.permissions))
     // @ts-ignore
@@ -209,7 +210,7 @@ function bySeverityDesc (a, b) {
  * @returns {Promise<{ counts: Record<string, number> | null, failed: boolean }>}
  */
 async function countVulnerabilities (repo) {
-  const result = /** @type {{ success: boolean, stdout: string | undefined, stderr: string | undefined }} */ (await $(`gh api --paginate /repos/${ORG}/${repo}/dependabot/alerts?state=open&per_page=100`, {
+  const result = /** @type {{ success: boolean, stdout: string | undefined, stderr: string | undefined }} */ (await $(`gh api --paginate /repos/${requireGithubOrg()}/${repo}/dependabot/alerts?state=open&per_page=100`, {
     loading: false,
     reject: false,
     returnProperty: 'all'

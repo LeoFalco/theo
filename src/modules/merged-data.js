@@ -3,7 +3,7 @@
 import { differenceInBusinessDays, format, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { TEAMS } from '../core/constants.js'
-import { GITHUB_ORG } from '../core/env.js'
+import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
 import { getTeamByAssignee } from '../utils/utils.js'
 
@@ -13,7 +13,7 @@ export async function fetchMergedPRs (team, from, to) {
   const pulls = await githubFacade.listPullRequestsV2({
     assignees,
     state: 'MERGED',
-    organization: GITHUB_ORG,
+    organization: requireGithubOrg(),
     from,
     to
   }).then((pulls) => {

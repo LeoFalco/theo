@@ -4,8 +4,7 @@ export async function generateFieldNewsSuggestion ({ repoDescription, pullReques
   const prompt = `
     Comunique um e-mail descolado de uma alteração no código com descrição que deve ser explicativa para o público em geral.
 
-    Será enviado para funcionários internos da empresa Field Control.
-    Onde usamos "Fielders" para nos referirmos aos funcionários da empresa.
+    Será enviado para os funcionários internos da empresa.
 
     Deve possuir os seguintes tópicos separados:
 
