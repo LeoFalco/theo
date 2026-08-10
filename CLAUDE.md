@@ -34,13 +34,11 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 ### Services
 
 - **`src/services/flux/flux-client.js`** — GraphQL client for the Flux project management API. Exports `fluxClient` singleton and `STAGES` / `PIPES` constants with hardcoded UUIDs for kanban stages.
-- **`src/services/openai/open-ai-api.js`** — OpenAI integration for PR description generation.
 
 ### Key Commands
 
 - **`merge`** — Core command. Without `--flux`: merges the current branch's PR using `gh pr merge` with fallback strategies (normal → auto → admin). With `--flux`: fetches cards from the Flux "PUBLISH" stage, shows their PRs with readiness checks, merges them, and moves cards to "MERGED" stage.
 - **`rebase`** — Rebases current branch on the default branch; optionally force-pushes (`-p`).
-- **`pr-create`** — Creates a PR from the current branch. Reads `.github/pull_request_template.md` and `.github/workflows/fieldnews.yml` from the target repo to infer PR title prefixes.
 - **`pr view`** — Shows the pull request of the current branch. Detects the forge from the `origin` url (`src/commands/pr/remote.js`): GitHub is delegated to `gh pr view`, Azure DevOps is queried through `az repos pr list` and rendered locally.
 
 ## Code Style
