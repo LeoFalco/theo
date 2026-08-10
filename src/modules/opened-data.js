@@ -2,6 +2,7 @@
 
 import { format } from 'date-fns'
 import { QUALITY_TEAM, TEAMS } from '../core/constants.js'
+import { GITHUB_ORG } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
 import { calcAge, hasPublishLabel, isApproved, isChecksPassed, isChecksInProgress, isMergeable, isNotFreelance, isNotWait, isQualityOk, isReady, isRejected } from '../utils/utils.js'
 
@@ -16,7 +17,7 @@ export async function fetchOpenedPRs (team) {
 
   const pulls = await githubFacade.listPullRequestsV2({
     assignees,
-    organization: 'FieldControl',
+    organization: GITHUB_ORG,
     state: 'OPEN',
     from,
     to

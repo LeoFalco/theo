@@ -211,7 +211,7 @@ class GithubFacade {
       return Promise.all(
         pulls.map(async (pull) => {
           Object.assign(pull, {
-            checks: pull.headRef ? await getChecks('FieldControl', pull.repository.name, pull.headRef.target.oid) : []
+            checks: pull.headRef ? await getChecks(params.organization, pull.repository.name, pull.headRef.target.oid) : []
           })
           console.log(`check consultado ${pull.url} (${--pending} restantes)`)
           return pull
@@ -228,7 +228,7 @@ class GithubFacade {
     }).then((response) => {
       return response.viewer.organization.repository.pullRequest
     }).then(async (pull) => {
-      pull.checks = pull.headRef ? await getChecks('FieldControl', pull.repository.name, pull.headRef.target.oid) : []
+      pull.checks = pull.headRef ? await getChecks(params.organization, pull.repository.name, pull.headRef.target.oid) : []
       return pull
     })
   }
