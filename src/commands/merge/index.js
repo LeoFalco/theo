@@ -459,7 +459,7 @@ async function mergeCardPrs (card, options, cardIndex, cardTotal) {
     const hasFluxCardComment = comments.some(comment => comment.body.includes('Flux: https://app.fluxcontrol.com.br/#/fluxo/b23ec9c8-8aeb-471a-8b2f-cd1af4f5e73e?view_mode=table&panel=card-detail&cardId='))
 
     if (!hasFluxCardComment) {
-      await $(`gh pr comment ${pullRequest.url} --body Flux:\\ https://app.fluxcontrol.com.br/#/fluxo/b23ec9c8-8aeb-471a-8b2f-cd1af4f5e73e?view_mode=table&panel=card-detail&cardId=${card.id}`, { reject, stdio: 'ignore', loading: false })
+      await $(['gh', 'pr', 'comment', pullRequest.url, '--body', `Flux: https://app.fluxcontrol.com.br/#/fluxo/b23ec9c8-8aeb-471a-8b2f-cd1af4f5e73e?view_mode=table&panel=card-detail&cardId=${card.id}`], { reject, stdio: 'ignore', loading: false })
       console.log(green('    Added Flux comment'))
     }
   }

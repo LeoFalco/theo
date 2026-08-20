@@ -7,7 +7,9 @@ import chalk from 'chalk'
 const { gray } = chalk
 
 /**
- * @param {string} command
+ * @param {string | string[]} command - command line, or an already split [file, ...args] tuple.
+ *   The string form is parsed with shell-like escaping rules that drop backslashes and split on
+ *   spaces, so pass the tuple whenever an argument may hold a filesystem path.
  * @param {Object} [options] - options
  * @param {boolean} [options.reject] - reject promise on error (default: true)
  * @param {string} [options.returnProperty] - stdout | stderr
@@ -27,15 +29,19 @@ export async function $ (command, options) {
   options.returnProperty = options.returnProperty || 'stdout'
   options.loading = typeof options.loading === 'boolean' ? options.loading : true
 
+  const [file, ...commandArguments] = Array.isArray(command)
+    ? command
+    : parseCommandString(command)
+
+  const commandLine = Array.isArray(command) ? command.join(' ') : command
+
   const spinner = options.loading
-    ? ora({ text: command }).start()
+    ? ora({ text: commandLine }).start()
     : null
 
   if (!options.loading && !options.disableLog) {
-    console.log(gray('>'), command)
+    console.log(gray('>'), commandLine)
   }
-
-  const [file, ...commandArguments] = parseCommandString(command)
 
   const result = await execa(file, commandArguments, {
     cleanup: true,
