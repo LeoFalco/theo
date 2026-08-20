@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "3.1103.0",
-    "@aws-sdk/credential-providers": "3.1098.0",
+    "@aws-sdk/credential-providers": "3.1112.0",
     "axios": "1.19.0",
     "chalk": "6.0.0",
     "chalk-table": "1.0.2",
