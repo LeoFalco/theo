@@ -1,5 +1,5 @@
-import { fileURLToPath } from 'node:url'
-import { dirname } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { dirname, join } from 'node:path'
 import { readdir } from 'node:fs/promises'
 import { warn } from '../core/patch-console-log.js'
 
@@ -8,14 +8,14 @@ export async function installCommands ({ program }) {
 
   const currentDirName = dirname(currentFileName)
 
-  const currentSubDirNames = await readdir(currentDirName)
-    .then((names) => names.filter((name) => name !== 'index.js'))
+  const currentSubDirNames = await readdir(currentDirName, { withFileTypes: true })
+    .then((entries) => entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name))
 
   for (const currentSubDirName of currentSubDirNames) {
-    const currentSubDirPath = `${currentDirName}/${currentSubDirName}/index.js`
+    const currentSubDirPath = join(currentDirName, currentSubDirName, 'index.js')
 
     try {
-      const currentSubDirModule = await import(currentSubDirPath).then((module) => module.default)
+      const currentSubDirModule = await import(pathToFileURL(currentSubDirPath).href).then((module) => module.default)
       if (!currentSubDirModule.install) {
         warn(`Module '${currentSubDirName}' at '${currentSubDirPath}' does not export 'install' function`)
         continue

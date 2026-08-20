@@ -119,7 +119,7 @@ class RepoCleanCommand {
     const removableWorkTrees = workTrees.filter((w) => !w.isMain && w.path !== process.cwd())
     for (const workTree of removableWorkTrees) {
       info(`Removendo worktree ${workTree.path}${workTree.branch ? ` (${workTree.branch})` : ''}`)
-      await $(`git worktree remove ${workTree.path}`)
+      await $(['git', 'worktree', 'remove', workTree.path])
       if (!workTree.branch) continue
       workTreeBranches.delete(workTree.branch)
       if (protectedBranches.has(workTree.branch)) continue

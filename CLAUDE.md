@@ -25,7 +25,7 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 
 ### Core Utilities
 
-- **`src/core/exec.js`** — The `$()` helper wraps `execa` for running shell commands. Key options: `json: true` parses stdout as JSON, `returnProperty: 'all'` returns `{ exitCode, success, stdout, stderr }`, `reject: false` prevents throwing on non-zero exit, `loading: false` suppresses the spinner.
+- **`src/core/exec.js`** — The `$()` helper wraps `execa` for running shell commands. It accepts either a command string or an already split `[file, ...args]` array. The string form goes through `parseCommandString`, which splits on spaces and consumes backslashes, so any argument that may hold a filesystem path must be passed with the array form. Key options: `json: true` parses stdout as JSON, `returnProperty: 'all'` returns `{ exitCode, success, stdout, stderr }`, `reject: false` prevents throwing on non-zero exit, `loading: false` suppresses the spinner.
 - **`src/core/githubFacade.js`** — Octokit-based GitHub GraphQL + REST client. Handles PR queries (with checks, reviews, labels), branch comparison, and PR updates (rebase/update branch).
 - **`src/core/constants.js`** — Team member lists organized by team (CMMS, FSM, QUALITY). Adding/removing members here affects all commands that filter by team.
 - **`src/core/env.js`** — Loads the repo-root `.env` (via dotenv) and exports config read from it. `GITHUB_ORG` is the GitHub organization queried by `repos`, `opened` and `merged`; it has no default, so use `requireGithubOrg()` at call sites to fail with an actionable message when it is unset. See `.env.example`.
@@ -44,6 +44,16 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 ## Code Style
 
 ESLint with `neostandard` — no semicolons, 2-space indentation, single quotes. Run `npm run lint:fix` before committing.
+
+## Cross-Platform
+
+The CLI runs on Linux, macOS and Windows, and CI exercises all three. Keep it that way:
+
+- Build filesystem paths with `node:path` and `os.homedir()`, never with `process.env.HOME` or hardcoded separators.
+- Pass paths to `$()` through the array form so backslashes survive.
+- Import modules resolved at runtime with `pathToFileURL`; the ESM loader rejects bare Windows paths.
+- `scripts/install.sh` installs on Linux and macOS, `scripts/install.ps1` on Windows. Changes to one usually belong in the other.
+- `.gitattributes` pins the working tree to LF so shell scripts stay executable when checked out on Windows.
 
 ## External Dependencies
 

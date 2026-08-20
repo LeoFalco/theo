@@ -2,6 +2,8 @@ import { $ } from '../../core/exec.js'
 import chalk from 'chalk'
 import { info } from '../../core/patch-console-log.js'
 import { createRequire } from 'node:module'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 const require = createRequire(import.meta.url)
 const { version } = require('./../../../package.json')
 
@@ -15,11 +17,11 @@ class RebaseCommand {
   }
 
   async action () {
-    const gitDir = `${process.env.HOME}/.theo/.git`
-    const workTree = `${process.env.HOME}/.theo`
+    const workTree = join(homedir(), '.theo')
+    const gitDir = join(workTree, '.git')
     const format = '%H%n%an%n%ad%n%s' // hash \n author \n date \n message
 
-    const lastCommit = await $(`git --git-dir ${gitDir} --work-tree ${workTree} log -n 1 --format=${format} --date=iso`)
+    const lastCommit = await $(['git', '--git-dir', gitDir, '--work-tree', workTree, 'log', '-n', '1', `--format=${format}`, '--date=iso'])
 
     const [hash, author, date, message] = lastCommit.split('\n')
 

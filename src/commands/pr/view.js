@@ -60,12 +60,12 @@ export async function viewAction (options) {
  * Delegates to the GitHub CLI, which already knows how to render a pull request.
  */
 async function viewGithubPullRequest ({ branch, options }) {
-  const commandParts = ['gh', 'pr', 'view', escapeArgument(branch)]
+  const commandParts = ['gh', 'pr', 'view', branch]
 
   if (options.web) commandParts.push('--web')
   if (options.json) commandParts.push('--json', GITHUB_JSON_FIELDS)
 
-  const result = await $(commandParts.join(' '), {
+  const result = await $(commandParts, {
     stdio: 'inherit',
     loading: false,
     disableLog: true,
@@ -77,17 +77,15 @@ async function viewGithubPullRequest ({ branch, options }) {
 }
 
 async function viewAzurePullRequest ({ remoteInfo, branch, options }) {
-  const command = [
-    'az repos pr list',
-    `--org ${remoteInfo.organizationUrl}`,
-    `--project ${escapeArgument(remoteInfo.project)}`,
-    `--repository ${escapeArgument(remoteInfo.repository)}`,
-    `--source-branch ${escapeArgument(branch)}`,
-    `--status ${escapeArgument(options.status)}`,
-    '--output json'
-  ].join(' ')
-
-  const pullRequests = await runAzureCommand(command)
+  const pullRequests = await runAzureCommand([
+    'az', 'repos', 'pr', 'list',
+    '--org', remoteInfo.organizationUrl,
+    '--project', remoteInfo.project,
+    '--repository', remoteInfo.repository,
+    '--source-branch', branch,
+    '--status', options.status,
+    '--output', 'json'
+  ])
 
   if (!pullRequests.length) {
     warn(`no pull request found for branch '${branch}' in ${remoteInfo.project}/${remoteInfo.repository}`)
@@ -174,7 +172,7 @@ function printAzureHint (stderr) {
   const message = String(stderr || '')
 
   if (message.includes('ENOENT') || message.includes('command not found')) {
-    info('install the Azure CLI: brew install azure-cli')
+    info('install the Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli')
     return
   }
 
@@ -204,9 +202,4 @@ function formatDate (value) {
   if (Number.isNaN(date.getTime())) return null
 
   return format(date, 'dd/MM/yyyy HH:mm')
-}
-
-// execa splits the command on whitespace, so spaces need escaping
-function escapeArgument (value) {
-  return String(value ?? '').replaceAll(' ', '\\ ')
 }

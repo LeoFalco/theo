@@ -20,7 +20,7 @@ export async function rebaseAction (options) {
 
     const spinner = ora({ text: `PR #${number} by ${author.login} — commenting @${botName} rebase` }).start()
     try {
-      await $(`gh pr comment ${number} --body @${botName}\\ rebase`, { loading: false, disableLog: true })
+      await $(['gh', 'pr', 'comment', String(number), '--body', `@${botName} rebase`], { loading: false, disableLog: true })
 
       if (options.merge) {
         spinner.text = `PR #${number} by ${author.login} — enabling auto-merge`
