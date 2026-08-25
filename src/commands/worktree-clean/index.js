@@ -3,7 +3,7 @@
 import inquirer from 'inquirer'
 import { $ } from '../../core/exec.js'
 import { info, warn } from '../../core/patch-console-log.js'
-import { listWorkTrees } from '../../core/worktrees.js'
+import { extractLockPid, isProcessAlive, listWorkTrees } from '../../core/worktrees.js'
 
 class WorktreeCleanCommand {
   /**
@@ -19,7 +19,7 @@ class WorktreeCleanCommand {
       .command('clean')
       .description('remove all worktrees of the current git project')
       .option('-f, --force', 'remove worktrees even with uncommitted changes')
-      .option('-y, --yes', 'skip the confirmation prompt')
+      .option('-y, --yes', 'skip all confirmation prompts, including forcing removal of locked worktrees')
       .action(this.action.bind(this))
   }
 
@@ -57,8 +57,51 @@ class WorktreeCleanCommand {
     const failed = []
     for (const workTree of removable) {
       info(`Removendo worktree ${workTree.path}${workTree.branch ? ` (${workTree.branch})` : ''}`)
+
+      let forceRemove = Boolean(options.force)
+
+      if (workTree.locked) {
+        const pid = extractLockPid(workTree.lockReason)
+        const alive = pid !== undefined ? isProcessAlive(pid) : undefined
+
+        if (alive === false) {
+          info(`Lock obsoleto detectado em ${workTree.path} (pid ${pid} não está mais em execução) — desbloqueando`)
+        } else {
+          const reason = alive
+            ? `está em uso por um processo ativo (pid ${pid})`
+            : `está bloqueada (${workTree.lockReason || 'sem motivo informado'}) e não foi possível identificar o processo dono`
+
+          let proceed = Boolean(options.yes)
+          if (!proceed) {
+            const answer = await inquirer.prompt([{
+              type: 'confirm',
+              name: 'confirmed',
+              message: `Worktree ${workTree.path} ${reason}. Remover mesmo assim?`,
+              default: false
+            }])
+            proceed = answer.confirmed
+          }
+
+          if (!proceed) {
+            warn(`Worktree ${workTree.path} ${reason} — não removida.`)
+            failed.push(workTree.path)
+            continue
+          }
+
+          info(`Removendo ${workTree.path} mesmo com o lock ativo, a pedido do usuário`)
+          forceRemove = true
+        }
+
+        const unlockResult = await $(['git', 'worktree', 'unlock', workTree.path], { reject: false, returnProperty: 'all' })
+        if (!unlockResult.success) {
+          warn(`Não foi possível desbloquear ${workTree.path}: ${unlockResult.stderr}`)
+          failed.push(workTree.path)
+          continue
+        }
+      }
+
       const args = ['git', 'worktree', 'remove', workTree.path]
-      if (options.force) args.push('--force')
+      if (forceRemove) args.push('--force')
 
       const result = await $(args, { reject: false, returnProperty: 'all' })
       if (!result.success) {
