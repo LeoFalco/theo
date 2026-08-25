@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { $ } from '../../core/exec.js'
 import { error, info, warn } from '../../core/patch-console-log.js'
+import { listWorkTrees } from '../../core/worktrees.js'
 
 const { bold, cyan, dim, green, red, yellow } = chalk
 
@@ -366,29 +367,6 @@ async function countUnmergedCommits (branch, baseBranch) {
   const output = await $(`git cherry ${baseBranch} ${branch}`, { disableLog: true, loading: false, reject: false })
   if (typeof output !== 'string') return 0
   return output.split('\n').filter((line) => line.startsWith('+')).length
-}
-
-async function listWorkTrees () {
-  const output = await $('git worktree list --porcelain', { disableLog: true, loading: false })
-  if (typeof output !== 'string' || output === '') return []
-
-  const workTrees = []
-  let current = {}
-  for (const line of output.split('\n')) {
-    if (line === '') {
-      if (current.path) workTrees.push(current)
-      current = {}
-      continue
-    }
-    const [key, ...rest] = line.split(' ')
-    const value = rest.join(' ')
-    if (key === 'worktree') current.path = value
-    else if (key === 'branch') current.branch = value.replace('refs/heads/', '')
-  }
-  if (current.path) workTrees.push(current)
-
-  if (workTrees.length > 0) workTrees[0].isMain = true
-  return workTrees
 }
 
 export default new RepoCleanCommand()
