@@ -2,7 +2,7 @@
 
 import assert from 'node:assert'
 import test from 'node:test'
-import { decodeAzureOutput } from '../../../src/commands/pr/azure.js'
+import { decodeAzureOutput, parsePullRequestId } from '../../../src/commands/pr/azure.js'
 
 test('should decode utf-8 output', () => {
   const output = Buffer.from('{"title":"executa as ações da tabulação"}', 'utf8')
@@ -30,4 +30,23 @@ test('should accept output that is already a string', () => {
 test('should decode empty output', () => {
   assert.equal(decodeAzureOutput(Buffer.alloc(0)), '')
   assert.equal(decodeAzureOutput(undefined), '')
+})
+
+test('should parse a pull request id', () => {
+  assert.equal(parsePullRequestId('6411'), 6411)
+  assert.equal(parsePullRequestId(6411), 6411)
+})
+
+test('should parse a pull request id with surrounding spaces or a leading #', () => {
+  assert.equal(parsePullRequestId(' 6411 '), 6411)
+  assert.equal(parsePullRequestId('#6411'), 6411)
+})
+
+test('should reject anything that is not a positive integer', () => {
+  assert.equal(parsePullRequestId('abc'), null)
+  assert.equal(parsePullRequestId('64.11'), null)
+  assert.equal(parsePullRequestId('-1'), null)
+  assert.equal(parsePullRequestId('0'), null)
+  assert.equal(parsePullRequestId(''), null)
+  assert.equal(parsePullRequestId(undefined), null)
 })

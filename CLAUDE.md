@@ -39,7 +39,8 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 
 - **`merge`** — Core command. Without `--flux`: merges the current branch's PR using `gh pr merge` with fallback strategies (normal → auto → admin). With `--flux`: fetches cards from the Flux "PUBLISH" stage, shows their PRs with readiness checks, merges them, and moves cards to "MERGED" stage.
 - **`rebase`** — Rebases current branch on the default branch; optionally force-pushes (`-p`).
-- **`pr view`** — Shows the pull request of the current branch. Detects the forge from the `origin` url (`src/commands/pr/remote.js`): GitHub is delegated to `gh pr view`, Azure DevOps is queried through `az repos pr list` and rendered locally.
+- **`pr view [id]`** — Shows a pull request, by number or, without the argument, the one of the current branch. Detects the forge from the `origin` url (`src/commands/pr/remote.js`): GitHub is delegated to `gh pr view`, Azure DevOps is queried through `az repos pr list` (by branch) or `az repos pr show` (by id) and rendered locally. Azure ids are unique per organization, not per repository, so the by-id path takes the repository from the payload to build the url.
+- **`pr approve [id]`** — Approves a pull request, by number or, without the argument, the one of the current branch. GitHub is delegated to `gh pr review --approve`, Azure DevOps to `az repos pr set-vote --vote approve`. On Azure a branch with more than one active pull request is an error asking for the number.
 - **`pr list`** — Azure DevOps only. Lists the pull requests of the current repository as a table (labels, merge conflict, CI and review votes). The CI column needs one `az repos pr policy list` call per pull request, run with limited concurrency (`src/utils/concurrency.js`).
 
 ### Azure CLI quirks
@@ -62,6 +63,7 @@ The CLI runs on Linux, macOS and Windows, and CI exercises all three. Keep it th
 - Import modules resolved at runtime with `pathToFileURL`; the ESM loader rejects bare Windows paths.
 - `scripts/install.sh` installs on Linux and macOS, `scripts/install.ps1` on Windows. Changes to one usually belong in the other.
 - `.gitattributes` pins the working tree to LF so shell scripts stay executable when checked out on Windows.
+- `.claude/skills/*` are git symlinks (mode `120000`) into `.agents/skills/`, the canonical location. Git for Windows clones with `core.symlinks=false` by default, which checks them out as plain text files holding the target path — the skills then never load. Fix the clone, not the links: `git config core.symlinks true`, delete the stale files and `git checkout -- .claude/skills`. Creating the symlinks needs Windows Developer Mode (or an elevated shell).
 
 ## External Dependencies
 

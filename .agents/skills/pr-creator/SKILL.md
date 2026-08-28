@@ -15,9 +15,13 @@ repository's standards.
 Follow these steps to create a Pull Request:
 
 1.  **Branch Management**: **CRITICAL:** Ensure you are NOT working on the
-    `main` branch.
-    - Run `git branch --show-current`.
-    - If the current branch is `main`, you MUST create and switch to a new
+    default branch. Do not assume it is `main` — this repository uses `master`.
+    - Resolve it instead of hardcoding it:
+      ```bash
+      git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|^origin/||'
+      ```
+    - Run `git branch --show-current` and compare the two.
+    - If you are on the default branch, you MUST create and switch to a new
       descriptive branch:
       ```bash
       git checkout -b <new-branch-name>
@@ -26,7 +30,7 @@ Follow these steps to create a Pull Request:
 2.  **Commit Changes**: Verify that all intended changes are committed.
     - Run `git status` to check for unstaged or uncommitted changes.
     - If there are uncommitted changes, stage and commit them with a descriptive
-      message before proceeding. NEVER commit directly to `main`.
+      message before proceeding. NEVER commit directly to the default branch.
       ```bash
       git add .
       git commit -m "type(scope): description"
@@ -53,18 +57,18 @@ Follow these steps to create a Pull Request:
     - **Related Issues**: Link any issues fixed or related to this PR (e.g.,
       "Fixes #123").
 
-6.  **Preflight Check**: Before creating the PR, run the workspace preflight
-    script to ensure all build, lint, and test checks pass.
+6.  **Preflight Check**: Before creating the PR, run the lint and test suites.
     ```bash
-    npm run preflight
+    npm run lint
+    npm test
     ```
     If any checks fail, address the issues before proceeding to create the PR.
 
 7.  **Push Branch**: Push the current branch to the remote repository.
     **CRITICAL SAFETY RAIL:** Double-check your branch name before pushing.
-    NEVER push if the current branch is `main`.
+    NEVER push if the current branch is the default one.
     ```bash
-    # Verify current branch is NOT main
+    # Verify the current branch is not the default branch
     git branch --show-current
     # Push non-interactively
     git push -u origin HEAD
@@ -87,7 +91,8 @@ Follow these steps to create a Pull Request:
 
 ## Principles
 
-- **Safety First**: NEVER push to `main`. This is your highest priority.
+- **Safety First**: NEVER push to the default branch. This is your highest
+  priority.
 - **Compliance**: Never ignore the PR template. It exists for a reason.
 - **Completeness**: Fill out all relevant sections.
 - **Accuracy**: Don't check boxes for tasks you haven't done.
