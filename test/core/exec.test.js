@@ -20,3 +20,17 @@ test('should split a command passed as a string', async () => {
 
   assert.deepEqual(JSON.parse(String(output)), ['first', 'second'])
 })
+
+test('should return raw bytes when the buffer encoding is requested', async () => {
+  const script = 'process.stdout.write(Buffer.from([0x61, 0xE7, 0x6F]))'
+
+  const result = await $(['node', '-e', script], {
+    loading: false,
+    disableLog: true,
+    encoding: 'buffer',
+    returnProperty: 'all'
+  })
+
+  assert.ok(ArrayBuffer.isView(result.stdout), 'stdout should be raw bytes')
+  assert.deepEqual([...result.stdout], [0x61, 0xE7, 0x6F])
+})
