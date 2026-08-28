@@ -5,12 +5,30 @@ import { format } from 'date-fns'
 import open from 'open'
 import { $ } from '../../core/exec.js'
 import { error, info, warn } from '../../core/patch-console-log.js'
-import { runAzureCommand, shortRefName } from './azure.js'
+import { parsePullRequestId, runAzureCommand, shortRefName } from './azure.js'
 import { buildAzurePullRequestUrl, getRemoteInfo } from './remote.js'
 
 const { bold, cyan, dim, green, red, yellow } = chalk
 
 const GITHUB_JSON_FIELDS = 'number,title,state,isDraft,author,headRefName,baseRefName,mergeable,reviewDecision,url'
+
+// projecting the fields we print stops the azure cli from dropping every accented character of
+// the response — it only does that when the command runs without --query
+const SHOW_QUERY = '{'
+  + 'pullRequestId:pullRequestId,'
+  + 'title:title,'
+  + 'status:status,'
+  + 'isDraft:isDraft,'
+  + 'creationDate:creationDate,'
+  + 'sourceRefName:sourceRefName,'
+  + 'targetRefName:targetRefName,'
+  + 'createdBy:createdBy,'
+  + 'mergeStatus:mergeStatus,'
+  + 'mergeFailureMessage:mergeFailureMessage,'
+  + 'autoCompleteSetBy:autoCompleteSetBy,'
+  + 'reviewers:reviewers,'
+  + 'repository:repository'
+  + '}'
 
 const AZURE_VOTE_LABELS = {
   '10': green('approved'),
@@ -28,6 +46,7 @@ const AZURE_STATUS_LABELS = {
 
 /**
  * @param {Object} options
+ * @param {string | undefined} options.id - pull request number, defaults to the current branch
  * @param {string | undefined} options.branch
  * @param {boolean | undefined} options.web
  * @param {boolean | undefined} options.json
@@ -39,6 +58,28 @@ export async function viewAction (options) {
   if (!remoteInfo) {
     error('could not identify the forge of remote "origin", expected a GitHub or Azure DevOps url')
     process.exit(1)
+  }
+
+  if (options.id != null) {
+    if (options.branch) {
+      error('use either the pull request number or --branch, not both')
+      process.exit(1)
+    }
+
+    const pullRequestId = parsePullRequestId(options.id)
+
+    if (!pullRequestId) {
+      error(`invalid pull request number: ${options.id}`)
+      process.exit(1)
+    }
+
+    if (remoteInfo.provider === 'azure') {
+      await viewAzurePullRequestById({ remoteInfo, pullRequestId, options })
+      return
+    }
+
+    await viewGithubPullRequest({ target: String(pullRequestId), options })
+    return
   }
 
   const branch = options.branch || await $('git rev-parse --abbrev-ref HEAD', { loading: false, disableLog: true })
@@ -54,14 +95,15 @@ export async function viewAction (options) {
     return
   }
 
-  await viewGithubPullRequest({ branch: String(branch), options })
+  await viewGithubPullRequest({ target: String(branch), options })
 }
 
 /**
- * Delegates to the GitHub CLI, which already knows how to render a pull request.
+ * Delegates to the GitHub CLI, which already knows how to render a pull request and accepts
+ * either a branch name or a pull request number as its target.
  */
-async function viewGithubPullRequest ({ branch, options }) {
-  const commandParts = ['gh', 'pr', 'view', branch]
+async function viewGithubPullRequest ({ target, options }) {
+  const commandParts = ['gh', 'pr', 'view', target]
 
   if (options.web) commandParts.push('--web')
   if (options.json) commandParts.push('--json', GITHUB_JSON_FIELDS)
@@ -75,6 +117,53 @@ async function viewGithubPullRequest ({ branch, options }) {
   }).catch(() => ({ success: false }))
 
   if (!result.success) process.exitCode = 1
+}
+
+async function viewAzurePullRequestById ({ remoteInfo, pullRequestId, options }) {
+  if (options.web) {
+    const url = buildAzurePullRequestUrl(remoteInfo, pullRequestId)
+    info(`opening ${url}`)
+    await open(url)
+    return
+  }
+
+  const pullRequest = await runAzureCommand([
+    'az', 'repos', 'pr', 'show',
+    '--id', String(pullRequestId),
+    '--org', String(remoteInfo.organizationUrl),
+    '--query', SHOW_QUERY,
+    '--output', 'json'
+  ])
+
+  if (!pullRequest?.pullRequestId) {
+    warn(`pull request #${pullRequestId} not found in ${remoteInfo.owner}`)
+    process.exitCode = 1
+    return
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify(pullRequest, null, 2))
+    return
+  }
+
+  // pull request ids are unique across the organization, so the id may belong to another
+  // repository — the url has to follow the payload, not the current remote
+  printAzurePullRequest({ pullRequest, remoteInfo: resolveRepositoryInfo({ remoteInfo, pullRequest }) })
+}
+
+/**
+ * Points the url at the repository the pull request actually lives in.
+ */
+function resolveRepositoryInfo ({ remoteInfo, pullRequest }) {
+  const repository = pullRequest.repository
+
+  if (!repository?.name) return remoteInfo
+
+  return {
+    ...remoteInfo,
+    repository: repository.name,
+    project: repository.project?.name || remoteInfo.project
+  }
 }
 
 async function viewAzurePullRequest ({ remoteInfo, branch, options }) {

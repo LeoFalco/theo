@@ -95,3 +95,20 @@ export function printAzureHint (stderr) {
 export function shortRefName (refName) {
   return String(refName || '').replace(/^refs\/heads\//, '')
 }
+
+/**
+ * Normalizes a pull request id coming from the command line.
+ * Accepts '6411', ' 6411 ' and '#6411', rejects anything that is not a positive integer.
+ *
+ * @param {string | number | undefined} value
+ * @returns {number | null}
+ */
+export function parsePullRequestId (value) {
+  const text = String(value ?? '').trim().replace(/^#/, '')
+
+  if (!/^\d+$/.test(text)) return null
+
+  const id = Number(text)
+
+  return id > 0 ? id : null
+}
