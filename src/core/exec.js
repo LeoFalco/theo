@@ -20,6 +20,8 @@ const { gray } = chalk
  * @param {number} [options.timeout] - timeout in milliseconds
  * @param {AbortSignal} [options.signal] - abort signal
  * @param {boolean} [options.disableLog] - do not log command (default: false)
+ * @param {'buffer'} [options.encoding] - return raw bytes instead of a decoded string, for
+ *   commands that do not write utf-8
  * @returns {Promise<string | null | Object>} - command output
  */
 export async function $ (command, options) {
@@ -48,6 +50,7 @@ export async function $ (command, options) {
     cwd: options.cwd,
     reject: options.reject,
     stdio: options.stdio || 'pipe',
+    encoding: options.encoding,
     timeout: options.timeout,
     cancelSignal: options.signal
 
@@ -72,8 +75,8 @@ export async function $ (command, options) {
     return {
       exitCode: result.exitCode,
       success: result.exitCode === 0,
-      stdout: result.stdout?.toString().trim(),
-      stderr: result.stderr?.toString().trim()
+      stdout: trimOutput(result.stdout),
+      stderr: trimOutput(result.stderr)
     }
   }
 
@@ -90,4 +93,10 @@ export async function $ (command, options) {
   }
 
   return JSON.parse(returnValueAsString)
+}
+
+function trimOutput (value) {
+  if (value == null || ArrayBuffer.isView(value)) return value
+
+  return value.toString().trim()
 }

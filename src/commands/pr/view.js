@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import open from 'open'
 import { $ } from '../../core/exec.js'
 import { error, info, warn } from '../../core/patch-console-log.js'
+import { runAzureCommand, shortRefName } from './azure.js'
 import { buildAzurePullRequestUrl, getRemoteInfo } from './remote.js'
 
 const { bold, cyan, dim, green, red, yellow } = chalk
@@ -150,48 +151,8 @@ function formatReviewers (reviewers) {
     .join(', ')
 }
 
-async function runAzureCommand (command) {
-  const result = await $(command, {
-    loading: false,
-    disableLog: true,
-    reject: false,
-    returnProperty: 'all'
-  }).catch(err => ({ success: false, stdout: '', stderr: err.shortMessage || err.message }))
-
-  if (!result.success) {
-    error('failed to query Azure DevOps')
-    if (result.stderr) error(result.stderr)
-    printAzureHint(result.stderr)
-    process.exit(1)
-  }
-
-  return JSON.parse(result.stdout || '[]')
-}
-
-function printAzureHint (stderr) {
-  const message = String(stderr || '')
-
-  if (message.includes('ENOENT') || message.includes('command not found')) {
-    info('install the Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli')
-    return
-  }
-
-  if (message.includes('not in the') && message.includes('extension')) {
-    info('install the devops extension: az extension add --name azure-devops')
-    return
-  }
-
-  if (message.includes('az login') || message.includes('Unauthorized') || message.includes('TF400813')) {
-    info('authenticate first: az login')
-  }
-}
-
 function statusRank (pullRequest) {
   return pullRequest.status === 'active' ? 0 : 1
-}
-
-function shortRefName (refName) {
-  return String(refName || '').replace(/^refs\/heads\//, '')
 }
 
 function formatDate (value) {

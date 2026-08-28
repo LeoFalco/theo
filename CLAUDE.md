@@ -40,6 +40,14 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 - **`merge`** — Core command. Without `--flux`: merges the current branch's PR using `gh pr merge` with fallback strategies (normal → auto → admin). With `--flux`: fetches cards from the Flux "PUBLISH" stage, shows their PRs with readiness checks, merges them, and moves cards to "MERGED" stage.
 - **`rebase`** — Rebases current branch on the default branch; optionally force-pushes (`-p`).
 - **`pr view`** — Shows the pull request of the current branch. Detects the forge from the `origin` url (`src/commands/pr/remote.js`): GitHub is delegated to `gh pr view`, Azure DevOps is queried through `az repos pr list` and rendered locally.
+- **`pr list`** — Azure DevOps only. Lists the pull requests of the current repository as a table (labels, merge conflict, CI and review votes). The CI column needs one `az repos pr policy list` call per pull request, run with limited concurrency (`src/utils/concurrency.js`).
+
+### Azure CLI quirks
+
+`src/commands/pr/azure.js` wraps every `az` call and works around two behaviours found on Windows:
+
+- `az` writes **windows-1252**, not UTF-8, so its stdout is read as raw bytes and decoded by `decodeAzureOutput` (strict UTF-8 first, windows-1252 as fallback). Reading it as UTF-8 corrupts every accented character.
+- `az repos pr list` **drops every non-ASCII character** unless the command also passes `--query`. Always project the fields you need with `--query`; it is not only about payload size.
 
 ## Code Style
 
