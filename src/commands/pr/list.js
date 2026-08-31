@@ -2,15 +2,18 @@
 
 import chalk from 'chalk'
 import chalkTable from 'chalk-table'
+import ora from 'ora'
 import { error, info, warn } from '../../core/patch-console-log.js'
 import { mapWithConcurrency } from '../../utils/concurrency.js'
 import { runAzureCommand, shortRefName } from './azure.js'
 import {
   formatAge,
   formatLabels,
+  formatProgressLabel,
   matchesAuthor,
   resolveCiStatus,
   resolveMergeState,
+  shouldShowProgress,
   summarizeVotes,
   truncate
 } from './list-format.js'
@@ -76,6 +79,11 @@ export async function listAction (options) {
     process.exit(1)
   }
 
+  // the listing costs one az call plus one per pull request, several seconds in total, so the
+  // spinners are what keeps the command from looking hung
+  const showProgress = shouldShowProgress({ json: options.json, isTty: process.stdout.isTTY })
+  const listSpinner = showProgress ? ora('buscando pull requests...').start() : null
+
   const pullRequests = await runAzureCommand([
     'az', 'repos', 'pr', 'list',
     '--org', String(remoteInfo.organizationUrl),
@@ -84,12 +92,13 @@ export async function listAction (options) {
     '--status', options.status,
     '--query', LIST_QUERY,
     '--output', 'json'
-  ])
+  ], { onError: () => listSpinner?.fail() })
 
   /** @type {AzurePullRequest[]} */
   const filtered = pullRequests.filter((/** @type {AzurePullRequest} */ pullRequest) => matchesAuthor(pullRequest, options.author))
 
   if (!filtered.length) {
+    listSpinner?.stop()
     warn(`no ${options.status} pull request found in ${remoteInfo.project}/${remoteInfo.repository}`)
     return
   }
@@ -97,7 +106,17 @@ export async function listAction (options) {
   // most recent first
   filtered.sort((/** @type {AzurePullRequest} */ left, /** @type {AzurePullRequest} */ right) => right.pullRequestId - left.pullRequestId)
 
-  const details = await fetchDetails({ pullRequests: filtered, remoteInfo })
+  listSpinner?.succeed(`${filtered.length} pull request(s) encontrados`)
+
+  const detailSpinner = showProgress ? ora(formatProgressLabel(0, filtered.length)).start() : null
+
+  const details = await fetchDetails({
+    pullRequests: filtered,
+    remoteInfo,
+    onProgress: (done) => { if (detailSpinner) detailSpinner.text = formatProgressLabel(done, filtered.length) }
+  })
+
+  detailSpinner?.stop()
 
   if (options.json) {
     console.log(JSON.stringify(details, null, 2))
@@ -111,17 +130,21 @@ export async function listAction (options) {
  * Fetches, per pull request, what the listing endpoint does not return: the build policy
  * evaluations and, on older Azure api versions, the labels.
  *
- * @param {{ pullRequests: AzurePullRequest[], remoteInfo: RemoteInfo }} params
+ * @param {{ pullRequests: AzurePullRequest[], remoteInfo: RemoteInfo, onProgress?: (done: number) => void }} params
  * @returns {Promise<AzurePullRequest[]>}
  */
-async function fetchDetails ({ pullRequests, remoteInfo }) {
+async function fetchDetails ({ pullRequests, remoteInfo, onProgress }) {
   const labelsAreMissing = !Array.isArray(pullRequests[0]?.labels)
+
+  let done = 0
 
   return mapWithConcurrency(pullRequests, DETAIL_CONCURRENCY, async (pullRequest) => {
     const [policies, labels] = await Promise.all([
       fetchPolicies({ pullRequest, remoteInfo }),
       labelsAreMissing ? fetchLabels({ pullRequest, remoteInfo }) : pullRequest.labels
     ])
+
+    onProgress?.(++done)
 
     return { ...pullRequest, labels, policyEvaluations: policies }
   })
