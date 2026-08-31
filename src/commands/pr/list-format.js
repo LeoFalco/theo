@@ -147,3 +147,25 @@ export function truncate (text, limit) {
 
   return `${value.slice(0, limit - 3)}...`
 }
+
+/**
+ * Text of the spinner shown while the per pull request details are fetched.
+ *
+ * @param {number} done
+ * @param {number} total
+ * @returns {string}
+ */
+export function formatProgressLabel (done, total) {
+  return `consultando CI e etiquetas... ${done}/${total}`
+}
+
+/**
+ * Tells whether the listing may draw a spinner. Anything that is not an interactive table
+ * must stay silent: `--json` goes to a parser and a redirected stdout keeps the escape codes.
+ *
+ * @param {{ json?: boolean, isTty?: boolean }} params
+ * @returns {boolean}
+ */
+export function shouldShowProgress ({ json, isTty }) {
+  return Boolean(isTty) && !json
+}

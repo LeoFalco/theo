@@ -36,6 +36,8 @@ export function decodeAzureOutput (output) {
  * @param {string[]} command
  * @param {Object} [options]
  * @param {any} [options.fallback] - value returned instead of exiting when the command fails
+ * @param {() => void} [options.onError] - called before the fatal error is printed, so a caller
+ *   holding a spinner can close its line first
  * @returns {Promise<any>}
  */
 export async function runAzureCommand (command, options) {
@@ -52,6 +54,8 @@ export async function runAzureCommand (command, options) {
 
   if (!result.success) {
     if (options && 'fallback' in options) return options.fallback
+
+    options?.onError?.()
 
     error('failed to query Azure DevOps')
     if (stderr) error(stderr)

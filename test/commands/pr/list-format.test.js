@@ -5,9 +5,11 @@ import test from 'node:test'
 import {
   formatAge,
   formatLabels,
+  formatProgressLabel,
   matchesAuthor,
   resolveCiStatus,
   resolveMergeState,
+  shouldShowProgress,
   summarizeVotes,
   truncate
 } from '../../../src/commands/pr/list-format.js'
@@ -124,4 +126,17 @@ test('should truncate long titles keeping the limit', () => {
   assert.equal(truncate('short title', 20), 'short title')
   assert.equal(truncate('a'.repeat(30), 10), 'aaaaaaa...')
   assert.equal(truncate(undefined, 10), '')
+})
+
+test('should format the progress label of the detail lookup', () => {
+  assert.equal(formatProgressLabel(0, 30), 'consultando CI e etiquetas... 0/30')
+  assert.equal(formatProgressLabel(12, 30), 'consultando CI e etiquetas... 12/30')
+  assert.equal(formatProgressLabel(1, 1), 'consultando CI e etiquetas... 1/1')
+})
+
+test('should show progress only on an interactive terminal rendering a table', () => {
+  assert.equal(shouldShowProgress({ json: false, isTty: true }), true)
+  assert.equal(shouldShowProgress({ json: true, isTty: true }), false)
+  assert.equal(shouldShowProgress({ json: false, isTty: false }), false)
+  assert.equal(shouldShowProgress({ json: undefined, isTty: undefined }), false)
 })
