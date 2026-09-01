@@ -17,9 +17,10 @@ import {
   summarizeVotes,
   truncate
 } from './list-format.js'
-import { buildAzurePullRequestUrl, getRemoteInfo } from './remote.js'
+import { buildAzurePullRequestUrl, buildAzurePullRequestsUrl, getRemoteInfo } from './remote.js'
+import { hyperlink, supportsHyperlinks } from '../../utils/hyperlink.js'
 
-const { cyan, dim, green, red, yellow } = chalk
+const { cyan, dim, green, red, underline, yellow } = chalk
 
 /**
  * @typedef {import('./remote.js').RemoteInfo} RemoteInfo
@@ -181,9 +182,10 @@ async function fetchLabels ({ pullRequest, remoteInfo }) {
  */
 function printTable ({ details, remoteInfo }) {
   const now = new Date()
+  const linked = supportsHyperlinks()
 
   const rows = details.map((/** @type {AzurePullRequest} */ pullRequest) => ({
-    id: `#${pullRequest.pullRequestId}`,
+    id: formatId({ pullRequest, remoteInfo, linked }),
     title: formatTitle(pullRequest),
     author: pullRequest.createdBy?.displayName || '',
     branch: shortRefName(pullRequest.sourceRefName),
@@ -209,9 +211,26 @@ function printTable ({ details, remoteInfo }) {
     ]
   }, rows))
 
+  const listingUrl = buildAzurePullRequestsUrl(remoteInfo)
+
   console.log('')
   console.log(`${details.length} pull request(s) em ${remoteInfo.project}/${remoteInfo.repository}`)
-  console.log(dim(buildAzurePullRequestUrl(remoteInfo, details[0].pullRequestId).replace(/\/pullrequest\/\d+$/, '/pullrequests')))
+  console.log(hyperlink(dim(listingUrl), listingUrl, { enabled: linked }))
+}
+
+/**
+ * The id cell doubles as the link to the pull request. The underline is what tells the reader
+ * it is clickable, so it is only drawn when the terminal actually renders the hyperlink.
+ *
+ * @param {{ pullRequest: AzurePullRequest, remoteInfo: RemoteInfo, linked: boolean }} params
+ * @returns {string}
+ */
+function formatId ({ pullRequest, remoteInfo, linked }) {
+  const id = `#${pullRequest.pullRequestId}`
+
+  if (!linked) return id
+
+  return hyperlink(underline(id), buildAzurePullRequestUrl(remoteInfo, pullRequest.pullRequestId), { enabled: true })
 }
 
 /**

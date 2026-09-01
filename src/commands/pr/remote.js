@@ -95,11 +95,29 @@ export async function getRemoteInfo (options) {
  * @returns {string}
  */
 export function buildAzurePullRequestUrl (remoteInfo, pullRequestId) {
+  return `${buildAzureRepositoryUrl(remoteInfo)}/pullrequest/${pullRequestId}`
+}
+
+/**
+ * Builds the browser url of the pull request listing of an Azure DevOps repository.
+ *
+ * @param {RemoteInfo} remoteInfo
+ * @returns {string}
+ */
+export function buildAzurePullRequestsUrl (remoteInfo) {
+  return `${buildAzureRepositoryUrl(remoteInfo)}/pullrequests`
+}
+
+/**
+ * @param {RemoteInfo} remoteInfo
+ * @returns {string}
+ */
+function buildAzureRepositoryUrl (remoteInfo) {
   const organization = encodeURIComponent(remoteInfo.owner)
   const project = encodeURIComponent(remoteInfo.project || '')
   const repository = encodeURIComponent(remoteInfo.repository)
 
-  return `https://dev.azure.com/${organization}/${project}/_git/${repository}/pullrequest/${pullRequestId}`
+  return `https://dev.azure.com/${organization}/${project}/_git/${repository}`
 }
 
 function decode (value) {

@@ -41,7 +41,7 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 - **`rebase`** — Rebases current branch on the default branch; optionally force-pushes (`-p`).
 - **`pr view [id]`** — Shows a pull request, by number or, without the argument, the one of the current branch. Detects the forge from the `origin` url (`src/commands/pr/remote.js`): GitHub is delegated to `gh pr view`, Azure DevOps is queried through `az repos pr list` (by branch) or `az repos pr show` (by id) and rendered locally. Azure ids are unique per organization, not per repository, so the by-id path takes the repository from the payload to build the url.
 - **`pr approve [id]`** — Approves a pull request, by number or, without the argument, the one of the current branch. GitHub is delegated to `gh pr review --approve`, Azure DevOps to `az repos pr set-vote --vote approve`. On Azure a branch with more than one active pull request is an error asking for the number.
-- **`pr list`** — Azure DevOps only. Lists the pull requests of the current repository as a table (labels, merge conflict, CI and review votes). The CI column needs one `az repos pr policy list` call per pull request, run with limited concurrency (`src/utils/concurrency.js`).
+- **`pr list`** — Azure DevOps only. Lists the pull requests of the current repository as a table (labels, merge conflict, CI and review votes). The CI column needs one `az repos pr policy list` call per pull request, run with limited concurrency (`src/utils/concurrency.js`). The `#` cell and the footer url are OSC 8 hyperlinks (`src/utils/hyperlink.js`), drawn only on terminals known to render them — `FORCE_HYPERLINK=1` overrides the detection.
 
 ### Azure CLI quirks
 
