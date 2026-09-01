@@ -2,7 +2,7 @@
 
 import assert from 'node:assert'
 import test from 'node:test'
-import { buildAzurePullRequestUrl, parseRemoteUrl } from '../../../src/commands/pr/remote.js'
+import { buildAzurePullRequestUrl, buildAzurePullRequestsUrl, parseRemoteUrl } from '../../../src/commands/pr/remote.js'
 
 test('should identify an azure devops ssh remote', () => {
   const result = parseRemoteUrl('git@ssh.dev.azure.com:v3/talkcomunication/Projetos/EpbxManagerNet9')
@@ -57,5 +57,14 @@ test('should build the azure pull request browser url', () => {
   assert.equal(
     buildAzurePullRequestUrl(/** @type {any} */(remoteInfo), 6039),
     'https://dev.azure.com/talkcomunication/Projetos/_git/EpbxManagerNet9/pullrequest/6039'
+  )
+})
+
+test('should build the azure pull request listing browser url', () => {
+  const remoteInfo = parseRemoteUrl('git@ssh.dev.azure.com:v3/talkcomunication/Projetos/EpbxManagerNet9')
+
+  assert.equal(
+    buildAzurePullRequestsUrl(/** @type {any} */(remoteInfo)),
+    'https://dev.azure.com/talkcomunication/Projetos/_git/EpbxManagerNet9/pullrequests'
   )
 })
