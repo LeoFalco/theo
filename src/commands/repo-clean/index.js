@@ -9,7 +9,7 @@ import { listWorkTrees } from '../../core/worktrees.js'
 const { bold, cyan, dim, green, red, yellow } = chalk
 
 /** Branches that are never rebased, force-pushed or deleted, on top of the default and base branches. */
-const LEGACY_PROTECTED_BRANCHES = ['homolog', 'preview', 'wiki/master']
+const LEGACY_PROTECTED_BRANCHES = ['homolog', 'preview', 'staging', 'wiki/master']
 
 class RepoCleanCommand {
   /**
