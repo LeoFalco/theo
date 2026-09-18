@@ -2,13 +2,11 @@
 
 import { differenceInBusinessDays, format, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { TEAMS } from '../core/constants.js'
 import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
-import { getTeamByAssignee } from '../utils/utils.js'
 
-export async function fetchMergedPRs (team, from, to) {
-  const assignees = TEAMS[team]
+export async function fetchMergedPRs (team, members, from, to) {
+  const assignees = members
 
   const pulls = await githubFacade.listPullRequestsV2({
     assignees,
@@ -31,7 +29,7 @@ export async function fetchMergedPRs (team, from, to) {
     pull.durationDays = pull.createdAt && pull.mergedAt
       ? Math.max(differenceInBusinessDays(parseISO(pull.mergedAt), parseISO(pull.createdAt)), 1)
       : null
-    pull.team = getTeamByAssignee(pull.author?.login)
+    pull.team = team
   }
 
   const grouped = Object.groupBy(pulls, (pull) => pull.author?.login ?? 'unknown')

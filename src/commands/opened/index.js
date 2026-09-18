@@ -43,9 +43,9 @@ class PrOpenedCommand {
     }
 
     // @ts-ignore
-    const team = await promptTeam(options)
+    const { name: team, members } = await promptTeam(options, { provider: 'github' })
 
-    const { pulls, memberStats } = await fetchOpenedPRs(team)
+    const { pulls, memberStats } = await fetchOpenedPRs(team, members)
 
     const currentUser = await githubFacade.getCurrentUser()
       .then((user) => user.data.login)
@@ -59,18 +59,24 @@ class PrOpenedCommand {
    * @param {import('../pr/remote.js').RemoteInfo} params.remoteInfo
    */
   async runAzure ({ options, remoteInfo }) {
+    const { name: team, members } = await promptTeam(options, {
+      provider: 'azure',
+      organizationUrl: remoteInfo.organizationUrl,
+      project: remoteInfo.project
+    })
+
     const spinner = process.stdout.isTTY ? ora('buscando pull requests no Azure DevOps...').start() : null
 
-    const { pulls, memberStats } = await fetchAzureOpenedPRs(remoteInfo)
+    const { pulls, memberStats } = await fetchAzureOpenedPRs(remoteInfo, members)
 
     const currentUser = await fetchAzureCurrentUser()
 
-    spinner?.succeed(`${pulls.length} pull request(s) abertos em ${remoteInfo.project}/${remoteInfo.repository}`)
+    spinner?.succeed(`${pulls.length} pull request(s) abertos do time ${team} em ${remoteInfo.project}/${remoteInfo.repository}`)
 
     this.render({
       pulls,
       memberStats,
-      team: `${remoteInfo.project}/${remoteInfo.repository}`,
+      team,
       options,
       currentUser,
       isAzure: true

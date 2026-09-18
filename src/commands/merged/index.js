@@ -50,13 +50,13 @@ class PrMergedCommand {
 
     console.log('List pull requests options', options)
 
-    const team = await promptTeam(options)
+    const { name: team, members } = await promptTeam(options, { provider: 'github' })
     const from = await promptFrom(options)
     const to = await promptTo(options)
 
     console.log('Analisando PRs do time', team, 'entre', from, 'e', to)
 
-    const { pulls } = await fetchMergedPRs(team, from, to)
+    const { pulls } = await fetchMergedPRs(team, members, from, to)
 
     await this.render({ pulls })
 
@@ -77,13 +77,20 @@ class PrMergedCommand {
     const from = await promptFrom(options)
     const to = await promptTo(options)
 
+    const { name: team, members } = await promptTeam(options, {
+      provider: 'azure',
+      organizationUrl: remoteInfo.organizationUrl,
+      project: remoteInfo.project
+    })
+
     const spinner = process.stdout.isTTY ? ora('buscando pull requests no Azure DevOps...').start() : null
 
-    const { pulls } = await fetchAzureMergedPRs(remoteInfo, from, to)
+    const { pulls } = await fetchAzureMergedPRs(remoteInfo, from, to, members)
+    for (const pull of pulls) {
+      pull.team = team
+    }
 
-    spinner?.succeed(`${pulls.length} pull request(s) publicados em ${remoteInfo.project}/${remoteInfo.repository}`)
-
-    const team = `${remoteInfo.project}/${remoteInfo.repository}`
+    spinner?.succeed(`${pulls.length} pull request(s) publicados do time ${team} em ${remoteInfo.project}/${remoteInfo.repository}`)
 
     await this.render({ pulls })
 

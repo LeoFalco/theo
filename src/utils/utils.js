@@ -1,6 +1,5 @@
 import { Chalk } from 'chalk'
 import { differenceInDays, parseISO } from 'date-fns'
-import { TEAMS } from '../core/constants.js'
 
 export const chalk = new Chalk()
 
@@ -22,6 +21,26 @@ export function isMergeable (pull) {
 
 export function isMerged (pull) {
   return pull.state === 'MERGED'
+}
+
+/**
+ * Normalizes a list of team members (logins / unique names) into a lowercase set
+ * for fast membership checks.
+ * @param {Array<string>} [members]
+ * @returns {Set<string>}
+ */
+export function toLowercaseSet (members) {
+  return new Set((members || []).map((member) => String(member || '').toLowerCase()))
+}
+
+/**
+ * @param {string | undefined} login
+ * @param {string | undefined} name
+ * @param {Set<string>} members - lowercase set of team member identifiers
+ * @returns {boolean}
+ */
+export function isMemberOfTeam (login, name, members) {
+  return members.has(String(login || '').toLowerCase()) || members.has(String(name || '').toLowerCase())
 }
 
 export function isQualityOk (pull, qualityUsers) {
@@ -127,16 +146,4 @@ export function coloredConclusion (conclusion) {
     default:
       return chalk.blue(conclusion)
   }
-}
-
-/**
- * @param {string} assignee
- */
-export function getTeamByAssignee (assignee) {
-  for (const item of Object.keys(TEAMS)) {
-    if (item === 'TODOS' || item === 'GRID' || item === 'FSM') continue
-    if (TEAMS[item].includes(assignee)) return item
-  }
-
-  return 'UNKNOWN'
 }
