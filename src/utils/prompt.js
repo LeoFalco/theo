@@ -1,36 +1,68 @@
 // @ts-check
 
 import inquirer from 'inquirer'
-import { TEAMS } from '../core/constants.js'
+import { fetchTeams, resolveTeamMembers } from '../core/teams.js'
 import { dateFilter, dateValidator, notNullValidator } from '../core/validators.js'
 
 /**
+ * Resolves the team to analyze, researching the teams of the organization at
+ * selection time (github org teams via `gh`, azure devops teams via `az`).
+ *
  * @param {Object} options
- * @param {keyof typeof TEAMS | undefined} options.team
- * @returns {Promise<keyof typeof TEAMS>}
+ * @param {string | undefined} options.team
+ * @param {import('../core/teams.js').TeamSource} source
+ * @returns {Promise<{ name: string, slug?: string, members: string[] }>}
  */
-export async function promptTeam (options) {
-  if (options?.team) {
-    if (options.team in TEAMS) {
-      return options.team
-    }
+export async function promptTeam (options, source) {
+  const teams = await fetchTeams(source)
 
-    console.warn(`Time ${options.team} não encontrado, por favor selecione um time da lista abaixo`)
+  if (teams.length === 0) {
+    throw new Error('Nenhum time encontrado para a organização.')
   }
 
-  // @ts-ignore
-  const { team } = await inquirer.prompt([
-    {
-      type: 'select',
-      message: 'Por favor selecione o time que deseja analisar',
-      name: 'team',
-      choices: Object.keys(TEAMS),
-      default: options.team || TEAMS.GRID,
-      validate: notNullValidator('Por favor selecione um time')
-    }
-  ])
+  const picked = options?.team && teams.find((team) => matchesTeam(team, options.team))
 
-  return team
+  if (!picked) {
+    if (options?.team) {
+      console.warn(`Time ${options.team} não encontrado, por favor selecione um time da lista abaixo`)
+    }
+
+    // @ts-ignore
+    const { team } = await inquirer.prompt([
+      {
+        type: 'select',
+        message: 'Por favor selecione o time que deseja analisar',
+        name: 'team',
+        choices: teams.map((team) => team.name),
+        default: teams[0]?.name,
+        validate: notNullValidator('Por favor selecione um time')
+      }
+    ])
+
+    const selected = teams.find((candidate) => candidate.name === team)
+
+    return {
+      name: team,
+      slug: selected?.slug,
+      members: await resolveTeamMembers(source, selected || { name: team })
+    }
+  }
+
+  return {
+    name: picked.name,
+    slug: picked.slug,
+    members: await resolveTeamMembers(source, picked)
+  }
+}
+
+/**
+ * @param {import('../core/teams.js').Team} team
+ * @param {string} name
+ * @returns {boolean}
+ */
+function matchesTeam (team, name) {
+  const target = String(name || '').toLowerCase()
+  return team.name.toLowerCase() === target || (team.slug || '').toLowerCase() === target
 }
 
 /**

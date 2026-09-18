@@ -1,13 +1,13 @@
 // @ts-check
 
 import { format } from 'date-fns'
-import { QUALITY_TEAM, TEAMS } from '../core/constants.js'
+import { QUALITY_TEAM } from '../core/constants.js'
 import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
 import { calcAge, hasPublishLabel, isApproved, isChecksPassed, isChecksInProgress, isMergeable, isNotFreelance, isNotWait, isQualityOk, isReady, isRejected } from '../utils/utils.js'
 
-export async function fetchOpenedPRs (team) {
-  const assignees = TEAMS[team]
+export async function fetchOpenedPRs (team, members) {
+  const assignees = members
 
   const now = new Date()
   const from = format(now, 'yyyy-MM-dd')
@@ -45,7 +45,7 @@ export async function fetchOpenedPRs (team) {
         pull.quality = quality
         pull.age = age
 
-        const teamReviewers = TEAMS[team].filter((login) => login !== pull.author?.login)
+        const teamReviewers = members.filter((login) => login !== pull.author?.login)
         const approvedReviewers = pull.reviews.nodes.filter((/** @type {{ state: string; }} */ review) => review.state === 'APPROVED').map((/** @type {{ author: { login: any; }; }} */ review) => review.author?.login)
         const missingReviewers = teamReviewers.filter((login) => !approvedReviewers.includes(login))
         pull.missingReviewers = missingReviewers

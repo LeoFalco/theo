@@ -4,6 +4,7 @@ import { differenceInBusinessDays, format, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { runAzureCommand } from '../commands/pr/azure.js'
 import { buildAzurePullRequestUrl } from '../commands/pr/remote.js'
+import { isMemberOfTeam, toLowercaseSet } from '../utils/utils.js'
 
 // projecting the fields we use stops the azure cli from dropping every accented character of
 // the response — it only does that when the command runs without --query
@@ -22,9 +23,11 @@ const LIST_QUERY = '[].{'
  * @param {import('../commands/pr/remote.js').RemoteInfo} remoteInfo
  * @param {string} from - 'yyyy-MM-dd'
  * @param {string} to - 'yyyy-MM-dd'
+ * @param {string[]} [members] - team member identifiers (uniqueName/displayName);
+ *   leaves the listing unfiltered when absent or empty
  * @returns {Promise<{ pulls: any[], memberStats: any[] }>}
  */
-export async function fetchAzureMergedPRs (remoteInfo, from, to) {
+export async function fetchAzureMergedPRs (remoteInfo, from, to, members = []) {
   const pullRequests = await runAzureCommand([
     'az', 'repos', 'pr', 'list',
     '--org', String(remoteInfo.organizationUrl),
@@ -35,9 +38,11 @@ export async function fetchAzureMergedPRs (remoteInfo, from, to) {
     '--output', 'json'
   ])
 
+  const memberSet = toLowercaseSet(members)
   const pulls = pullRequests
     .filter((pullRequest) => isMergedInRange(pullRequest, from, to))
     .map((pullRequest) => normalizeMergedPull({ pullRequest, remoteInfo }))
+    .filter((pull) => memberSet.size === 0 || isMemberOfTeam(pull.author?.login, pull.author?.name, memberSet))
     .sort((left, right) => String(left.mergedAt).localeCompare(String(right.mergedAt)))
 
   const grouped = Object.groupBy(pulls, (pull) => pull.author?.login ?? 'unknown')
