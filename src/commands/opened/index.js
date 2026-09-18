@@ -6,9 +6,13 @@ import chalkTable from 'chalk-table'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { chain, map, mean } from 'lodash-es'
+import ora from 'ora'
 import { sheets } from '../../core/drive.js'
 import { githubFacade } from '../../core/githubFacade.js'
+import { fetchAzureOpenedPRs } from '../../modules/opened-data-azure.js'
 import { fetchOpenedPRs } from '../../modules/opened-data.js'
+import { runAzureCommand } from '../pr/azure.js'
+import { getRemoteInfo } from '../pr/remote.js'
 import { promptTeam } from '../../utils/prompt.js'
 
 class PrOpenedCommand {
@@ -32,11 +36,57 @@ class PrOpenedCommand {
    * @param {boolean | undefined} options.team
    */
   async action (options) {
+    const remoteInfo = await getRemoteInfo()
+
+    if (remoteInfo?.provider === 'azure') {
+      return this.runAzure({ options, remoteInfo })
+    }
+
     // @ts-ignore
     const team = await promptTeam(options)
 
     const { pulls, memberStats } = await fetchOpenedPRs(team)
 
+    const currentUser = await githubFacade.getCurrentUser()
+      .then((user) => user.data.login)
+
+    this.render({ pulls, memberStats, team, options, currentUser, isAzure: false })
+  }
+
+  /**
+   * @param {Object} params
+   * @param {Object} params.options
+   * @param {import('../pr/remote.js').RemoteInfo} params.remoteInfo
+   */
+  async runAzure ({ options, remoteInfo }) {
+    const spinner = process.stdout.isTTY ? ora('buscando pull requests no Azure DevOps...').start() : null
+
+    const { pulls, memberStats } = await fetchAzureOpenedPRs(remoteInfo)
+
+    const currentUser = await fetchAzureCurrentUser()
+
+    spinner?.succeed(`${pulls.length} pull request(s) abertos em ${remoteInfo.project}/${remoteInfo.repository}`)
+
+    this.render({
+      pulls,
+      memberStats,
+      team: `${remoteInfo.project}/${remoteInfo.repository}`,
+      options,
+      currentUser,
+      isAzure: true
+    })
+  }
+
+  /**
+   * @param {Object} params
+   * @param {Array<Record<string, any>>} params.pulls
+   * @param {Array<Record<string, any>>} params.memberStats
+   * @param {string} params.team
+   * @param {Object} params.options
+   * @param {string | undefined} params.currentUser
+   * @param {boolean} params.isAzure
+   */
+  async render ({ pulls, memberStats, team, options, currentUser, isAzure }) {
     const pullsSortedByAuthorAndAge = chain(pulls)
       .sortBy((pull) => -pull.age)
       .sortBy((pull) => pull.author?.login)
@@ -57,24 +107,15 @@ class PrOpenedCommand {
         { field: 'notRejected', name: chalk.cyan('Approved') },
         { field: 'quality', name: chalk.cyan('Quality') }
       ]
-    }, pullsSortedByAuthorAndAge.map((pull) => {
-      return {
-        ready: pull.ready ? chalk.green('✓') : chalk.red('✕'),
-        mergeable: pull.mergeable ? chalk.green('✓') : chalk.red('✕'),
-        checks: pull.checks ? chalk.green('✓') : chalk.red('✕'),
-        review: pull.approved ? chalk.green('✓') : chalk.red('✕'),
-        notRejected: pull.notRejected ? chalk.green('✓') : chalk.red('✕'),
-        quality: pull.quality ? chalk.green('✓') : chalk.red('✕'),
-        link: pull.url,
-        author: pull.author?.login,
-        age: pull.age + 'd',
-        title: pull.title.substring(0, 60) + (pull.title.length > 60 ? '...' : '')
-      }
-    })))
+    }, pullsSortedByAuthorAndAge.map((pull) => toRow(pull, { isAzure, withAuthor: true, truncate: true }))))
 
-    const currentUser = await githubFacade.getCurrentUser()
+    const myPulls = pulls.filter((pull) => {
+      const login = String(pull.author?.login || '')
+      return isAzure
+        ? login.toLowerCase() === String(currentUser || '').toLowerCase()
+        : login === currentUser
+    })
 
-    const myPulls = pulls.filter((pull) => pull.author?.login === currentUser.data.login)
     console.log('')
     console.log('Meus PRs')
     console.log(chalkTable({
@@ -88,19 +129,7 @@ class PrOpenedCommand {
         { field: 'notRejected', name: chalk.cyan('Approve') },
         { field: 'quality', name: chalk.cyan('Qa') }
       ]
-    }, myPulls.map((pull) => {
-      return {
-        ready: pull.ready ? chalk.green('✓') : chalk.red('✕'),
-        mergeable: pull.mergeable ? chalk.green('✓') : chalk.red('✕'),
-        checks: pull.checks ? chalk.green('✓') : chalk.red('✕'),
-        review: pull.approved ? chalk.green('✓') : chalk.red('✕'),
-        notRejected: pull.notRejected ? chalk.green('✓') : chalk.red('✕'),
-        quality: pull.quality ? chalk.green('✓') : chalk.red('✕'),
-        link: pull.url,
-        author: pull.author?.login,
-        title: pull.title
-      }
-    })))
+    }, myPulls.map((pull) => toRow(pull, { isAzure }))))
 
     console.log('')
     console.log('PRs abertos por membro')
@@ -114,7 +143,7 @@ class PrOpenedCommand {
 
     console.log('')
     console.log('Quantidade de prs abertos: ', pulls.length.toFixed(0))
-    console.log('Idade média: ' + mean(map(pulls, (pull) => pull.age)).toFixed(0) + ' dias corridos')
+    console.log('Idade média: ' + (pulls.length > 0 ? mean(map(pulls, (pull) => pull.age)).toFixed(0) : 0) + ' dias corridos')
     console.log('Cada autor tem a responsabilidade zelar pelo seu pr até que ele seja publicado')
     console.log('Oque fazer em cada caso:')
     console.log(
@@ -131,29 +160,88 @@ class PrOpenedCommand {
       'Lembre-se de revisar os prs dos colegas, pois a revisão de código é uma prática importante para manter a qualidade do código'
     )
 
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: '1HfU9yvsmK4yBFDkquozdx4IcGo34NpvKHIlRG5A77Ro',
-      range: 'A1:Z1000'
-    })
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: '1HfU9yvsmK4yBFDkquozdx4IcGo34NpvKHIlRG5A77Ro',
-      range: 'A1',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: toRows(pulls)
-      }
-    })
+    await writeToSheets(pulls)
 
     if (options.chat) {
-      await sendToGoogleChat(pullsSortedByAuthorAndAge, memberStats, team)
+      await sendToGoogleChat(pullsSortedByAuthorAndAge, memberStats, team, isAzure)
     }
   }
 }
 
+/**
+ * @param {Object} pull
+ * @param {Object} params
+ * @param {boolean} params.isAzure
+ * @param {boolean} [params.withAuthor]
+ * @param {boolean} [params.truncate]
+ * @returns {Record<string, any>}
+ */
+function toRow (pull, { isAzure, withAuthor = false, truncate = false }) {
+  const title = String(pull.title || '')
+  const truncated = title.length > 60 ? `${title.substring(0, 60)}...` : title
+
+  return {
+    ready: pull.ready ? chalk.green('✓') : chalk.red('✕'),
+    mergeable: pull.mergeable ? chalk.green('✓') : chalk.red('✕'),
+    checks: pull.checks ? chalk.green('✓') : chalk.red('✕'),
+    review: pull.approved ? chalk.green('✓') : chalk.red('✕'),
+    notRejected: pull.notRejected ? chalk.green('✓') : chalk.red('✕'),
+    quality: qualityCell(pull, isAzure),
+    link: pull.url,
+    author: withAuthor ? pull.author?.login : undefined,
+    age: (pull.age ?? 0) + 'd',
+    title: truncate ? truncated : title
+  }
+}
+
+/**
+ * The quality gate only exists on GitHub, so on Azure the cell stays neutral instead of
+ * painting a misleading green or red.
+ *
+ * @param {Object} pull
+ * @param {boolean} isAzure
+ */
+function qualityCell (pull, isAzure) {
+  if (isAzure) return chalk.dim('—')
+  return pull.quality ? chalk.green('✓') : chalk.red('✕')
+}
+
+/**
+ * @param {Array<Record<string, any>>} pulls
+ */
+async function writeToSheets (pulls) {
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: '1HfU9yvsmK4yBFDkquozdx4IcGo34NpvKHIlRG5A77Ro',
+    range: 'A1:Z1000'
+  })
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: '1HfU9yvsmK4yBFDkquozdx4IcGo34NpvKHIlRG5A77Ro',
+    range: 'A1',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: toRows(pulls)
+    }
+  })
+}
+
+/**
+ * Resolves the current Azure DevOps user (an e-mail usually), used to render the "Meus PRs"
+ * table matching against the pull request author's uniqueName.
+ *
+ * @returns {Promise<string>}
+ */
+async function fetchAzureCurrentUser () {
+  const account = await runAzureCommand([
+    'az', 'account', 'show', '--query', 'user.name', '--output', 'json'
+  ])
+
+  return String(account || '')
+}
+
 const GOOGLE_CHAT_WEBHOOK_URL = process.env.GOOGLE_CHAT_WEBHOOK_URL
 
-async function sendToGoogleChat (pulls, memberStats, team) {
+async function sendToGoogleChat (pulls, memberStats, team, isAzure) {
   const today = format(new Date(), 'dd/MM/yyyy (EEEE)', { locale: ptBR })
 
   if (pulls.length === 0) {
@@ -183,11 +271,11 @@ async function sendToGoogleChat (pulls, memberStats, team) {
         `${pull.mergeable ? '🟢' : '🔴'} Conflitos`,
         `${pull.checks ? '🟢' : pull.checksInProgress ? '🟡' : '🔴'} CI`,
         `${pull.approved ? '🟢' : '🔴'} Aprovado`,
-        `${pull.notRejected ? '🟢' : '🔴'} Mudanças Solicitadas`,
-        `${pull.quality ? '🟢' : '🔴'} Qualidade`
-      ].join(' | ')
+        `${pull.notRejected ? '🟢' : '🔴'} Mudanças Solicitadas`
+      ]
+      if (!isAzure) status.push(`${pull.quality ? '🟢' : '🔴'} Qualidade`)
       lines.push(`- <${pull.url}|${safeTitle}> (${pull.age}d)`)
-      lines.push(`  ${status}`)
+      lines.push(`  ${status.join(' | ')}`)
     }
   }
 
@@ -232,7 +320,7 @@ function toRows (pulls) {
       pull.mergeable ? 'yes' : 'no',
       pull.checks ? 'yes' : 'no',
       pull.approved ? 'yes' : 'no',
-      pull.quality ? 'yes' : 'no',
+      pull.quality == null ? '' : (pull.quality ? 'yes' : 'no'),
       pull.team,
       pull.age
     ]

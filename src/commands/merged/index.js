@@ -6,12 +6,15 @@ import chalkTable from 'chalk-table'
 import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { chain } from 'lodash-es'
+import ora from 'ora'
 import { sheets } from '../../core/drive.js'
 import { githubFacade } from '../../core/githubFacade.js'
+import { fetchAzureMergedPRs } from '../../modules/merged-data-azure.js'
 import { fetchMergedPRs } from '../../modules/merged-data.js'
+import { getRemoteInfo } from '../pr/remote.js'
 import { promptFrom, promptTeam, promptTo } from '../../utils/prompt.js'
 import { sleep } from '../../utils/sleep.js'
-import { coloredConclusion, coloredStatus, getTeamByAssignee } from '../../utils/utils.js'
+import { coloredConclusion, coloredStatus } from '../../utils/utils.js'
 
 class PrMergedCommand {
   /**
@@ -39,6 +42,12 @@ class PrMergedCommand {
    * @param {boolean | undefined} options.chat
    */
   async action (options) {
+    const remoteInfo = await getRemoteInfo()
+
+    if (remoteInfo?.provider === 'azure') {
+      return this.runAzure({ options, remoteInfo })
+    }
+
     console.log('List pull requests options', options)
 
     const team = await promptTeam(options)
@@ -49,6 +58,45 @@ class PrMergedCommand {
 
     const { pulls } = await fetchMergedPRs(team, from, to)
 
+    await this.render({ pulls })
+
+    await startPublishPooling(pulls)
+
+    if (options.chat) {
+      const jobUrls = await fetchMasterJobUrls(pulls)
+      await sendToGoogleChat(pulls, team, from, to, jobUrls)
+    }
+  }
+
+  /**
+   * @param {Object} params
+   * @param {Object} params.options
+   * @param {import('../pr/remote.js').RemoteInfo} params.remoteInfo
+   */
+  async runAzure ({ options, remoteInfo }) {
+    const from = await promptFrom(options)
+    const to = await promptTo(options)
+
+    const spinner = process.stdout.isTTY ? ora('buscando pull requests no Azure DevOps...').start() : null
+
+    const { pulls } = await fetchAzureMergedPRs(remoteInfo, from, to)
+
+    spinner?.succeed(`${pulls.length} pull request(s) publicados em ${remoteInfo.project}/${remoteInfo.repository}`)
+
+    const team = `${remoteInfo.project}/${remoteInfo.repository}`
+
+    await this.render({ pulls })
+
+    if (options.chat) {
+      await sendToGoogleChat(pulls, team, from, to)
+    }
+  }
+
+  /**
+   * @param {Object} params
+   * @param {Array<Record<string, any>>} params.pulls
+   */
+  async render ({ pulls }) {
     console.log('')
     console.log('PRs publicados')
     console.log(chalkTable({
@@ -63,35 +111,16 @@ class PrMergedCommand {
         mergedAt: pull.mergedAt,
         link: pull.url,
         title: pull.title,
-        author: pull.author.login,
+        author: pull.author?.login,
         team: pull.team
       }
     })))
 
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId: '1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA',
-      range: 'A1:Z1000'
-    })
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: '1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA',
-      range: 'A1',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: toRows(pulls)
-      }
-    })
+    await writeToSheets(pulls)
 
     console.log('')
     console.log('Dados atualizados: https://docs.google.com/spreadsheets/d/1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA')
     console.log('')
-
-    await startPublishPooling(pulls)
-
-    if (options.chat) {
-      const jobUrls = await fetchMasterJobUrls(pulls)
-      await sendToGoogleChat(pulls, team, from, to, jobUrls)
-    }
   }
 }
 
@@ -103,13 +132,32 @@ function toRows (pulls) {
         pull.url,
         pull.author?.login,
         pull.title,
-        getTeamByAssignee(pull.author?.login),
+        pull.team,
         pull.createdAt,
         pull.mergedAt,
         pull.durationDays
       ]
     })
   ]
+}
+
+/**
+ * @param {Array<Record<string, any>>} pulls
+ */
+async function writeToSheets (pulls) {
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: '1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA',
+    range: 'A1:Z1000'
+  })
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: '1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA',
+    range: 'A1',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: toRows(pulls)
+    }
+  })
 }
 
 async function startPublishPooling (pulls) {
