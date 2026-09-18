@@ -7,7 +7,6 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { chain, map, mean } from 'lodash-es'
 import ora from 'ora'
-import { sheets } from '../../core/drive.js'
 import { githubFacade } from '../../core/githubFacade.js'
 import { fetchAzureOpenedPRs } from '../../modules/opened-data-azure.js'
 import { fetchOpenedPRs } from '../../modules/opened-data.js'
@@ -166,8 +165,6 @@ class PrOpenedCommand {
       'Lembre-se de revisar os prs dos colegas, pois a revisão de código é uma prática importante para manter a qualidade do código'
     )
 
-    await writeToSheets(pulls)
-
     if (options.chat) {
       await sendToGoogleChat(pullsSortedByAuthorAndAge, memberStats, team, isAzure)
     }
@@ -210,25 +207,6 @@ function toRow (pull, { isAzure, withAuthor = false, truncate = false }) {
 function qualityCell (pull, isAzure) {
   if (isAzure) return chalk.dim('—')
   return pull.quality ? chalk.green('✓') : chalk.red('✕')
-}
-
-/**
- * @param {Array<Record<string, any>>} pulls
- */
-async function writeToSheets (pulls) {
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: '1HfU9yvsmK4yBFDkquozdx4IcGo34NpvKHIlRG5A77Ro',
-    range: 'A1:Z1000'
-  })
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: '1HfU9yvsmK4yBFDkquozdx4IcGo34NpvKHIlRG5A77Ro',
-    range: 'A1',
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: toRows(pulls)
-    }
-  })
 }
 
 /**
@@ -314,39 +292,6 @@ async function sendToGoogleChat (pulls, memberStats, team, isAzure) {
 
   console.log('')
   console.log('Mensagem enviada para o Google Chat!')
-}
-
-function toRows (pulls) {
-  const rows = pulls.map((pull) => {
-    return [
-      pull.url,
-      pull.title,
-      pull.author?.login,
-      pull.ready ? 'yes' : 'no',
-      pull.mergeable ? 'yes' : 'no',
-      pull.checks ? 'yes' : 'no',
-      pull.approved ? 'yes' : 'no',
-      pull.quality == null ? '' : (pull.quality ? 'yes' : 'no'),
-      pull.team,
-      pull.age
-    ]
-  })
-
-  return [
-    [
-      'Link',
-      'Title',
-      'Author',
-      'Draft',
-      'Mergeable',
-      'Checks',
-      'Review',
-      'Quality',
-      'Team',
-      'Age'
-    ],
-    ...rows
-  ]
 }
 
 export default new PrOpenedCommand()

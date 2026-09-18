@@ -7,7 +7,6 @@ import { format, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { chain } from 'lodash-es'
 import ora from 'ora'
-import { sheets } from '../../core/drive.js'
 import { githubFacade } from '../../core/githubFacade.js'
 import { fetchAzureMergedPRs } from '../../modules/merged-data-azure.js'
 import { fetchMergedPRs } from '../../modules/merged-data.js'
@@ -122,49 +121,7 @@ class PrMergedCommand {
         team: pull.team
       }
     })))
-
-    await writeToSheets(pulls)
-
-    console.log('')
-    console.log('Dados atualizados: https://docs.google.com/spreadsheets/d/1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA')
-    console.log('')
   }
-}
-
-function toRows (pulls) {
-  return [
-    ['Link', 'Author', 'Title', 'Team', 'Created At', 'Merged At', 'Duration (business days)'],
-    ...pulls.map(pull => {
-      return [
-        pull.url,
-        pull.author?.login,
-        pull.title,
-        pull.team,
-        pull.createdAt,
-        pull.mergedAt,
-        pull.durationDays
-      ]
-    })
-  ]
-}
-
-/**
- * @param {Array<Record<string, any>>} pulls
- */
-async function writeToSheets (pulls) {
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: '1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA',
-    range: 'A1:Z1000'
-  })
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: '1gQz-I9MPygcUo1nCtUoWXSOvIiZVedoWnj76A3dh6yA',
-    range: 'A1',
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: toRows(pulls)
-    }
-  })
 }
 
 async function startPublishPooling (pulls) {
