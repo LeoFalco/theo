@@ -21,7 +21,7 @@ export async function promptTeam (options) {
   // @ts-ignore
   const { team } = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'select',
       message: 'Por favor selecione o time que deseja analisar',
       name: 'team',
       choices: Object.keys(TEAMS),
