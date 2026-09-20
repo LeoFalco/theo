@@ -43,6 +43,18 @@ export function isMemberOfTeam (login, name, members) {
   return members.has(String(login || '').toLowerCase()) || members.has(String(name || '').toLowerCase())
 }
 
+/**
+ * Label shown in the Author/Membro columns. Azure identifies an author by e-mail
+ * (`createdBy.uniqueName`) and GitHub by login, so the display name is preferred whenever
+ * the provider gives us one; the identifier stays as the fallback.
+ *
+ * @param {{ name?: string, login?: string } | undefined} author
+ * @returns {string}
+ */
+export function authorLabel (author) {
+  return String(author?.name || author?.login || '')
+}
+
 export function isQualityOk (pull, qualityUsers) {
   return pull.reviews.nodes.some((review) => {
     return review.author && qualityUsers.includes(review.author?.login) && review.state === 'APPROVED'

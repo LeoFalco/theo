@@ -2,7 +2,7 @@
 
 import assert from 'node:assert'
 import test from 'node:test'
-import { isMemberOfTeam, toLowercaseSet } from '../../src/utils/utils.js'
+import { authorLabel, isMemberOfTeam, toLowercaseSet } from '../../src/utils/utils.js'
 
 test('toLowercaseSet normalizes member identifiers to lowercase', () => {
   const set = toLowercaseSet(['Leo', 'LEO@contoso.com', '  padded  '])
@@ -28,4 +28,10 @@ test('isMemberOfTeam rejects everything on an empty member set', () => {
   const members = toLowercaseSet([])
 
   assert.equal(isMemberOfTeam('leo@contoso.com', 'Leo', members), false)
+})
+
+test('authorLabel prefers the display name over the identifier', () => {
+  assert.equal(authorLabel({ login: 'leo@contoso.com', name: 'Leo Falco' }), 'Leo Falco')
+  assert.equal(authorLabel({ login: 'leofalco' }), 'leofalco')
+  assert.equal(authorLabel(undefined), '')
 })

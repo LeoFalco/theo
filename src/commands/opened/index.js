@@ -13,6 +13,7 @@ import { fetchOpenedPRs } from '../../modules/opened-data.js'
 import { runAzureCommand } from '../pr/azure.js'
 import { getRemoteInfo } from '../pr/remote.js'
 import { promptTeam } from '../../utils/prompt.js'
+import { authorLabel } from '../../utils/utils.js'
 
 class PrOpenedCommand {
   /**
@@ -191,7 +192,7 @@ function toRow (pull, { isAzure, withAuthor = false, truncate = false }) {
     notRejected: pull.notRejected ? chalk.green('✓') : chalk.red('✕'),
     quality: qualityCell(pull, isAzure),
     link: pull.url,
-    author: withAuthor ? pull.author?.login : undefined,
+    author: withAuthor ? authorLabel(pull.author) : undefined,
     age: (pull.age ?? 0) + 'd',
     title: truncate ? truncated : title
   }
