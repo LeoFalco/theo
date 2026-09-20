@@ -4,7 +4,7 @@ import { differenceInBusinessDays, format, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { runAzureCommand } from '../commands/pr/azure.js'
 import { buildAzurePullRequestUrl } from '../commands/pr/remote.js'
-import { isMemberOfTeam, toLowercaseSet } from '../utils/utils.js'
+import { authorLabel, isMemberOfTeam, toLowercaseSet } from '../utils/utils.js'
 
 // projecting the fields we use stops the azure cli from dropping every accented character of
 // the response — it only does that when the command runs without --query
@@ -48,7 +48,7 @@ export async function fetchAzureMergedPRs (remoteInfo, from, to, members = []) {
   const grouped = Object.groupBy(pulls, (pull) => pull.author?.login ?? 'unknown')
   const memberStats = Object.entries(grouped)
     .map(([author, memberPulls]) => ({
-      author,
+      author: authorLabel(memberPulls[0].author) || author,
       count: memberPulls.length
     }))
     .sort((a, b) => b.count - a.count)

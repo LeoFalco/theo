@@ -4,6 +4,7 @@ import { differenceInBusinessDays, format, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
+import { authorLabel } from '../utils/utils.js'
 
 export async function fetchMergedPRs (team, members, from, to) {
   const assignees = members
@@ -35,7 +36,7 @@ export async function fetchMergedPRs (team, members, from, to) {
   const grouped = Object.groupBy(pulls, (pull) => pull.author?.login ?? 'unknown')
   const memberStats = Object.entries(grouped)
     .map(([author, memberPulls]) => ({
-      author,
+      author: authorLabel(memberPulls[0].author) || author,
       count: memberPulls.length
     }))
     .sort((a, b) => b.count - a.count)

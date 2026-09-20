@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { QUALITY_TEAM } from '../core/constants.js'
 import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
-import { calcAge, hasPublishLabel, isApproved, isChecksPassed, isChecksInProgress, isMergeable, isNotFreelance, isNotWait, isQualityOk, isReady, isRejected } from '../utils/utils.js'
+import { authorLabel, calcAge, hasPublishLabel, isApproved, isChecksPassed, isChecksInProgress, isMergeable, isNotFreelance, isNotWait, isQualityOk, isReady, isRejected } from '../utils/utils.js'
 
 export async function fetchOpenedPRs (team, members) {
   const assignees = members
@@ -57,7 +57,7 @@ export async function fetchOpenedPRs (team, members) {
   const grouped = Object.groupBy(pulls, (pull) => pull.author?.login ?? 'unknown')
   const memberStats = Object.entries(grouped)
     .map(([author, memberPulls]) => ({
-      author,
+      author: authorLabel(memberPulls[0].author) || author,
       count: memberPulls.length,
       oldestAge: Math.max(...memberPulls.map((p) => p.age ?? 0))
     }))

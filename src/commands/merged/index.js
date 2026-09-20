@@ -13,7 +13,7 @@ import { fetchMergedPRs } from '../../modules/merged-data.js'
 import { getRemoteInfo } from '../pr/remote.js'
 import { promptFrom, promptTeam, promptTo } from '../../utils/prompt.js'
 import { sleep } from '../../utils/sleep.js'
-import { coloredConclusion, coloredStatus } from '../../utils/utils.js'
+import { authorLabel, coloredConclusion, coloredStatus } from '../../utils/utils.js'
 
 class PrMergedCommand {
   /**
@@ -117,7 +117,7 @@ class PrMergedCommand {
         mergedAt: pull.mergedAt,
         link: pull.url,
         title: pull.title,
-        author: pull.author?.login,
+        author: authorLabel(pull.author),
         team: pull.team
       }
     })))
@@ -240,7 +240,7 @@ async function sendToGoogleChat (pulls, team, from, to, jobUrls = {}) {
   const memberStats = chain(pulls)
     .groupBy((pull) => pull.author?.login)
     .map((memberPulls, author) => ({
-      author,
+      author: authorLabel(memberPulls[0].author) || author,
       count: memberPulls.length
     }))
     .sortBy('count')
