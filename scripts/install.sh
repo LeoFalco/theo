@@ -17,6 +17,37 @@ migrate_rc_file ~/.bashrc
 migrate_rc_file ~/.zshrc
 migrate_rc_file ~/.config/fish/config.fish
 
+show_changelog() {
+  [ -n "$OLD_HEAD" ] || return 0
+  NEW_HEAD=$(git -C ~/.theo rev-parse HEAD)
+  [ -z "$NEW_HEAD" ] || [ "$OLD_HEAD" = "$NEW_HEAD" ] && return 0
+
+  echo "▷ What is new in this update:"
+  echo
+
+  git -C ~/.theo log --no-merges --format='%s' "$OLD_HEAD..$NEW_HEAD" | awk '
+    /^feat/         { feat  = feat  "  * " $0 "\n"; next }
+    /^fix/          { fix   = fix   "  * " $0 "\n"; next }
+    /^perf/         { perf  = perf  "  * " $0 "\n"; next }
+    /^chore\(deps/  { deps  = deps  "  * " $0 "\n"; next }
+    /^chore/        { chore = chore "  * " $0 "\n"; next }
+    /^docs/         { docs  = docs  "  * " $0 "\n"; next }
+                    { other = other "  * " $0 "\n" }
+    END {
+      if (feat  != "") { print "New functionality:"; printf "%s", feat }
+      if (fix   != "") { print "Fixes:";             printf "%s", fix }
+      if (perf  != "") { print "Performance:";       printf "%s", perf }
+      if (deps  != "") { print "Dependencies:";      printf "%s", deps }
+      if (chore != "") { print "Chore:";             printf "%s", chore }
+      if (docs  != "") { print "Docs:";              printf "%s", docs }
+      if (other != "") { print "Other:";             printf "%s", other }
+    }
+  '
+
+  echo
+  echo "▷ Full changelog: https://github.com/LeoFalco/theo/commits/master"
+}
+
 if [ -d ~/.fc-tools ]; then
   echo "▷ The old ~/.fc-tools directory is no longer used and can be removed with 'rm -rf ~/.fc-tools'."
 fi
@@ -31,6 +62,7 @@ else
   cd ~/.theo
   echo "▷ Updating theo..."
 
+  OLD_HEAD=$(git rev-parse HEAD)
   git fetch --all >> /dev/null
   git reset --hard origin/master
   git pull
@@ -49,6 +81,8 @@ echo "▷ Installed dependencies."
 git add -A
 git reset --hard >> /dev/null
 cd - >> /dev/null
+
+show_changelog
 
 if [ -f ~/.bashrc ]; then
   if ! grep -q "\.theo" ~/.bashrc; then
