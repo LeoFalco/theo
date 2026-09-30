@@ -120,7 +120,12 @@ class RepoCleanCommand {
     const removableWorkTrees = workTrees.filter((w) => !w.isMain && w.path !== process.cwd())
     for (const workTree of removableWorkTrees) {
       info(`Removendo worktree ${workTree.path}${workTree.branch ? ` (${workTree.branch})` : ''}`)
-      await $(['git', 'worktree', 'remove', workTree.path])
+      const removed = await $(['git', 'worktree', 'remove', workTree.path], { reject: false, returnProperty: 'all' })
+      if (!removed.success) {
+        // Uma worktree suja não pode interromper a limpeza: ela e sua branch ficam como estão.
+        warn(`Não foi possível remover a worktree ${workTree.path}: ${summarizeGitError(removed.stderr)}`)
+        continue
+      }
       if (!workTree.branch) continue
       workTreeBranches.delete(workTree.branch)
       if (protectedBranches.has(workTree.branch)) continue
@@ -177,7 +182,7 @@ class RepoCleanCommand {
 
       // Uma branch sem permissão não pode interromper a fila: as outras seleções continuam.
       notDeleted.push(branch)
-      warn(`Não foi possível deletar ${branch}: ${summarizePushError(deleted.stderr)}`)
+      warn(`Não foi possível deletar ${branch}: ${summarizeGitError(deleted.stderr)}`)
     }
 
     if (notDeleted.length > 0) {
@@ -209,8 +214,8 @@ async function buildRemoteBranchChoices (branches) {
   }))
 }
 
-/** Extrai a linha útil do erro do git push, descartando o resto do ruído. */
-function summarizePushError (stderr) {
+/** Extrai a linha útil do erro do git, descartando o resto do ruído. */
+function summarizeGitError (stderr) {
   const lines = (stderr || '').split('\n').map((line) => line.trim()).filter(Boolean)
   return lines.find((line) => line.includes('[remote rejected]')) || lines[0] || 'erro desconhecido'
 }
