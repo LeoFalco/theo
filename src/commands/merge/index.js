@@ -142,12 +142,13 @@ class PrMergeCommand {
   async actionWithoutFlux (options) {
     console.log(blue('Merging pull request without flux'))
 
-    const prUrl = await $('gh pr view --json url --jq .url', { loading: false, disableLog: true })
+    const [prUrl, defaultBranch, currentBranch] = await Promise.all([
+      $('gh pr view --json url --jq .url', { loading: false, disableLog: true }),
+      $('gh repo view --json defaultBranchRef --jq .defaultBranchRef.name', { loading: false, disableLog: true }),
+      $('git branch --show-current', { loading: false, disableLog: true })
+    ])
 
     console.log(blue(`Pull request ${prUrl}`))
-
-    const defaultBranch = await $('gh repo view --json defaultBranchRef --jq .defaultBranchRef.name', { loading: false, disableLog: true })
-    const currentBranch = await $('git branch --show-current')
 
     console.log(blue(`Ready to merge branch ${currentBranch} into ${defaultBranch}`))
 
@@ -611,18 +612,15 @@ async function waitForMergeCompletion ({ currentBranch }) {
 async function approve ({ currentBranch }) {
   console.log(blue('Approving pull request'))
 
-  const reviewDecision = await $('gh pr view ' + currentBranch + ' --json reviewDecision --jq .reviewDecision')
+  // @ts-ignore
+  const { reviewDecision, reviews } = await $('gh pr view ' + currentBranch + ' --json reviewDecision,reviews', { json: true })
 
   if (reviewDecision === 'APPROVED') {
     console.log(green('Pull request already approved'))
     return
   }
 
-  const hasMyReview = await $('gh pr view ' + currentBranch + ' --json reviews', { json: true })
-    // @ts-ignore
-    .then(result => {
-      return result?.reviews.some(review => review.author.login === 'LeoFalco' && review.state === 'APPROVED')
-    })
+  const hasMyReview = reviews.some(review => review.author.login === 'LeoFalco' && review.state === 'APPROVED')
 
   if (!hasMyReview) {
     await $('gh pr review ' + currentBranch + ' --approve', { stdio: 'inherit', loading: false, reject: false })

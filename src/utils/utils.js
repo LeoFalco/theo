@@ -1,5 +1,6 @@
 import { Chalk } from 'chalk'
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInDays } from 'date-fns/differenceInDays'
+import { parseISO } from 'date-fns/parseISO'
 
 export const chalk = new Chalk()
 

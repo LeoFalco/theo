@@ -1,7 +1,9 @@
 // @ts-check
 
-import { differenceInBusinessDays, format, parseISO } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
+import { differenceInBusinessDays } from 'date-fns/differenceInBusinessDays'
+import { format } from 'date-fns/format'
+import { parseISO } from 'date-fns/parseISO'
+import { toZonedTime } from 'date-fns-tz/toZonedTime'
 import { runAzureCommand } from '../commands/pr/azure.js'
 import { buildAzurePullRequestUrl } from '../commands/pr/remote.js'
 import { authorLabel, isMemberOfTeam, toLowercaseSet } from '../utils/utils.js'

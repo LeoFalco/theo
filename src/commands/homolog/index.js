@@ -1,4 +1,5 @@
 import { $ } from '../../core/exec.js'
+import { resolveDefaultBranch } from '../../core/default-branch.js'
 
 class PreviewCommand {
   install ({ program }) {
@@ -10,10 +11,7 @@ class PreviewCommand {
 
   async action () {
     const initialBranch = await $('git rev-parse --abbrev-ref HEAD').then(result => result.trim())
-    const defaultBranch = await $('git remote show origin').then(result => {
-      const match = result.match(/HEAD branch: (.*)/)
-      return match ? match[1] : 'master'
-    })
+    const defaultBranch = await resolveDefaultBranch()
 
     // checkout default branch
     await $(`git checkout ${defaultBranch}`)

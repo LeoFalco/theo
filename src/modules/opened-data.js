@@ -1,6 +1,6 @@
 // @ts-check
 
-import { format } from 'date-fns'
+import { format } from 'date-fns/format'
 import { QUALITY_TEAM } from '../core/constants.js'
 import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'

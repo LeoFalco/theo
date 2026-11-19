@@ -5,11 +5,16 @@ import inquirer from 'inquirer'
 import { $ } from '../../core/exec.js'
 import { error, info, warn } from '../../core/patch-console-log.js'
 import { listWorkTrees } from '../../core/worktrees.js'
+import { resolveDefaultBranch } from '../../core/default-branch.js'
+import { mapWithConcurrency } from '../../utils/concurrency.js'
 
 const { bold, cyan, dim, green, red, yellow } = chalk
 
 /** Branches that are never rebased, force-pushed or deleted, on top of the default and base branches. */
 const LEGACY_PROTECTED_BRANCHES = ['homolog', 'preview', 'staging', 'wiki/master']
+
+/** How many read-only `git` processes run at the same time. */
+const GIT_CONCURRENCY = 8
 
 class RepoCleanCommand {
   /**
@@ -38,7 +43,6 @@ class RepoCleanCommand {
 
     const currentBranchName = await $('git rev-parse --abbrev-ref HEAD')
     await $('git fetch --all --prune')
-    await $('git remote prune origin')
 
     // A branch default do remote é a de produção: serve de referência, mas nunca é
     // rebaseada nem deletada. Quando existe `develop`, é ela que agrega o time.
@@ -67,9 +71,11 @@ class RepoCleanCommand {
       // atual é a exceção: sua branch é rebaseada como qualquer outra.
       .then((branches) => branches.filter((branch) => !workTreeBranches.has(branch.name) || branch.name === currentBranchName))
 
+    const unmergedCounts = await mapWithConcurrency(candidates, GIT_CONCURRENCY, (branch) => countUnmergedCommits(branch.name, baseBranch))
+
     const plan = { rebase: [], delete: [] }
-    for (const branch of candidates) {
-      const commits = await countUnmergedCommits(branch.name, baseBranch)
+    for (const [index, branch] of candidates.entries()) {
+      const commits = unmergedCounts[index]
       if (commits === 0) {
         plan.delete.push(branch.name)
         continue
@@ -200,11 +206,17 @@ class RepoCleanCommand {
 async function buildRemoteBranchChoices (branches) {
   const me = await $('git config user.email', { disableLog: true, loading: false, reject: false })
 
-  const entries = []
-  for (const branch of branches) {
-    const author = await $(`git log -1 --format=%ae origin/${branch}`, { disableLog: true, loading: false, reject: false })
-    entries.push({ branch, author: typeof author === 'string' ? author : '', mine: Boolean(me) && author === me })
-  }
+  // Uma chamada para todas as branches em vez de um `git log` por branch.
+  const output = await $(['git', 'for-each-ref', '--format=%(refname:lstrip=3)%09%(authoremail)', 'refs/remotes/origin'], { disableLog: true, loading: false, reject: false })
+  const authors = new Map((typeof output === 'string' ? output : '').split('\n').filter(Boolean).map((line) => {
+    const [branch, email] = line.split('\t')
+    return [branch, (email || '').replace(/^<|>$/g, '')]
+  }))
+
+  const entries = branches.map((branch) => {
+    const author = authors.get(branch) || ''
+    return { branch, author, mine: Boolean(me) && author === me }
+  })
 
   entries.sort((a, b) => Number(b.mine) - Number(a.mine) || a.branch.localeCompare(b.branch))
 
@@ -302,16 +314,6 @@ async function hasUncommittedChanges () {
 }
 
 /**
- * Branch default do remote (produção). É só referência — nunca é rebaseada nem deletada.
- * @returns {Promise<string>}
- */
-async function resolveDefaultBranch () {
-  const output = await $('git remote show origin', { disableLog: true, loading: false, reject: false })
-  const match = typeof output === 'string' ? output.match(/HEAD branch: (.*)/) : null
-  return match ? match[1].trim() : 'master'
-}
-
-/**
  * Mantém a branch de produção em dia sem nunca reescrevê-la: só fast-forward.
  */
 async function updateDefaultBranch ({ defaultBranch, baseBranch, currentBranchName, workTreeBranches }) {
@@ -347,17 +349,19 @@ async function listLocalBranches () {
   const output = await $('git for-each-ref --format=%(refname:short)%09%(upstream:short)%09%(upstream:track) refs/heads', { disableLog: true, loading: false })
   if (typeof output !== 'string' || output === '') return []
 
-  const branches = []
-  for (const line of output.split('\n').filter(Boolean)) {
+  // Uma chamada para todas as branches remotas em vez de um `git rev-parse` por branch local.
+  const remoteOutput = await $(['git', 'for-each-ref', '--format=%(refname:lstrip=3)', 'refs/remotes/origin'], { disableLog: true, loading: false })
+  const remoteBranches = new Set(typeof remoteOutput === 'string' ? remoteOutput.split('\n') : [])
+
+  return output.split('\n').filter(Boolean).map((line) => {
     const [name, upstream, track] = line.split('\t')
-    branches.push({
+    return {
       name,
       upstream: upstream || null,
       gone: (track || '').includes('gone'),
-      remoteExists: await remoteBranchExists(name)
-    })
-  }
-  return branches
+      remoteExists: remoteBranches.has(name)
+    }
+  })
 }
 
 /**

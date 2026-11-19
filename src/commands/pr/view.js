@@ -1,7 +1,7 @@
 // @ts-check
 
 import chalk from 'chalk'
-import { format } from 'date-fns'
+import { format } from 'date-fns/format'
 import open from 'open'
 import { $ } from '../../core/exec.js'
 import { error, info, warn } from '../../core/patch-console-log.js'
