@@ -207,8 +207,7 @@ class PrMergeCommand {
 
     console.log(blue('Local branch cleanup'))
     await $('git checkout ' + defaultBranch)
-    await $('git pull')
-    await $('git remote prune origin')
+    await $('git pull --prune')
     if (currentBranch !== defaultBranch) {
       await $('git branch -D ' + currentBranch, { reject: false })
     }

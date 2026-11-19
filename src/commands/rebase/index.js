@@ -24,12 +24,18 @@ class RebaseCommand {
 
     const baseBranch = options.baseBranch || await resolveDefaultBranch()
 
-    await $('git fetch')
-    await $('git remote prune origin')
-    await $(`git checkout ${baseBranch}`)
-    await $(`git pull origin ${baseBranch}`)
+    await $('git fetch --prune')
 
-    await $(`git checkout ${currentBranchName}`)
+    // avança a base local sem checkout; falha se não for fast-forward ou se a base for a branch atual
+    const baseUpdated = currentBranchName !== baseBranch
+      && await $(`git fetch . origin/${baseBranch}:${baseBranch}`, { reject: false, returnProperty: 'exitCode' }) === 0
+
+    if (!baseUpdated) {
+      await $(`git checkout ${baseBranch}`)
+      await $(`git pull origin ${baseBranch}`)
+      await $(`git checkout ${currentBranchName}`)
+    }
+
     await $(`git rebase ${baseBranch}`)
 
     const isCurrentBranchAlreadyMerged = await $(`git branch --merged ${baseBranch}`)
