@@ -1,7 +1,6 @@
 // @ts-check
 
 import { execa, parseCommandString } from 'execa'
-import ora from 'ora'
 
 import chalk from 'chalk'
 const { gray } = chalk
@@ -37,8 +36,9 @@ export async function $ (command, options) {
 
   const commandLine = Array.isArray(command) ? command.join(' ') : command
 
+  // ora custa ~18 ms de import; só carrega quando o spinner é usado
   const spinner = options.loading
-    ? ora({ text: commandLine }).start()
+    ? (await import('ora')).default({ text: commandLine }).start()
     : null
 
   if (!options.loading && !options.disableLog) {

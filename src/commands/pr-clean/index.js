@@ -38,25 +38,12 @@ class PrCleanCommand {
 
     info(`Checking ${remoteBranches.length} remote branches for merged PRs...`)
 
-    const mergedBranches = []
+    // shortcut: só os 1000 PRs mais recentes; branch cujo PR é mais antigo fica de fora (não é apagada)
+    const pulls = await $('gh pr list --state all --limit 1000 --json headRefName,state,url,isCrossRepository', { json: true })
+    const mergedBranches = findMergedBranches(remoteBranches, pulls)
 
-    for (const branch of remoteBranches) {
-      try {
-        // Check if PR exists and is merged
-        // We use --json state,url to get status. If no PR, it throws (which we catch)
-        // ensure we check the specific branch on the origin repo
-        const json = await $(`gh pr view ${branch} --json state,url`, { loading: false }).catch(() => null)
-
-        if (!json) continue
-
-        const prData = JSON.parse(json)
-        if (prData.state === 'MERGED') {
-          mergedBranches.push({ branch, url: prData.url })
-          info(`Found merged PR for branch ${branch}: ${prData.url}`)
-        }
-      } catch (_err) {
-        // ignore errors
-      }
+    for (const { branch, url } of mergedBranches) {
+      info(`Found merged PR for branch ${branch}: ${url}`)
     }
 
     if (mergedBranches.length === 0) {
@@ -95,6 +82,22 @@ class PrCleanCommand {
       await $(`git push origin --delete ${branch} --no-verify`).catch(e => warn(`Failed to delete remote branch ${branch}: ${e.message}`))
     }
   }
+}
+
+/**
+ * Branches cujo PR mais recente está mergeado, como `gh pr view <branch>` decidia.
+ * @param {string[]} branches
+ * @param {{ headRefName: string, state: string, url: string, isCrossRepository: boolean }[]} pulls - mais recentes primeiro
+ */
+export function findMergedBranches (branches, pulls) {
+  const latest = new Map()
+  for (const pull of pulls) {
+    if (!pull.isCrossRepository && !latest.has(pull.headRefName)) latest.set(pull.headRefName, pull)
+  }
+
+  return branches
+    .filter(branch => latest.get(branch)?.state === 'MERGED')
+    .map(branch => ({ branch, url: latest.get(branch).url }))
 }
 
 export default new PrCleanCommand()
