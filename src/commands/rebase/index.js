@@ -1,4 +1,5 @@
 import { $ } from '../../core/exec.js'
+import { resolveDefaultBranch } from '../../core/default-branch.js'
 import { error, info, warn } from '../../core/patch-console-log.js'
 
 class RebaseCommand {
@@ -21,10 +22,7 @@ class RebaseCommand {
 
     const currentBranchName = await $('git rev-parse --abbrev-ref HEAD')
 
-    const baseBranch = options.baseBranch || await $('git remote show origin').then(result => {
-      const match = result.match(/HEAD branch: (.*)/)
-      return match ? match[1] : 'master'
-    })
+    const baseBranch = options.baseBranch || await resolveDefaultBranch()
 
     await $('git fetch')
     await $('git remote prune origin')

@@ -1,6 +1,7 @@
 // @ts-check
 
-import { differenceInDays, parseISO } from 'date-fns'
+import { differenceInDays } from 'date-fns/differenceInDays'
+import { parseISO } from 'date-fns/parseISO'
 import { runAzureCommand } from '../commands/pr/azure.js'
 import { resolveCiStatus, resolveMergeState, summarizeVotes } from '../commands/pr/list-format.js'
 import { buildAzurePullRequestUrl } from '../commands/pr/remote.js'

@@ -1,7 +1,9 @@
 // @ts-check
 
-import { differenceInBusinessDays, format, parseISO } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
+import { differenceInBusinessDays } from 'date-fns/differenceInBusinessDays'
+import { format } from 'date-fns/format'
+import { parseISO } from 'date-fns/parseISO'
+import { toZonedTime } from 'date-fns-tz/toZonedTime'
 import { requireGithubOrg } from '../core/env.js'
 import { githubFacade } from '../core/githubFacade.js'
 import { authorLabel } from '../utils/utils.js'
