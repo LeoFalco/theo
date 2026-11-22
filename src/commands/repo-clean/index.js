@@ -94,6 +94,7 @@ class RepoCleanCommand {
     }
 
     const conflicted = []
+    const toPush = []
     for (const item of plan.rebase) {
       const checkout = await $(`git checkout ${item.name}`, { reject: false, returnProperty: 'all' })
       if (!checkout.success) {
@@ -115,8 +116,19 @@ class RepoCleanCommand {
         continue
       }
 
-      await $(`git push origin ${item.name} --force --no-verify`)
-      info(`${item.name}: rebaseada em ${baseBranch} e ${item.push === 'create' ? 'branch remota criada' : 'force-push feito'}`)
+      toPush.push(item)
+    }
+
+    // Um push só para todas as branches: cada push é uma ida ao remote.
+    if (toPush.length > 0) {
+      const rejected = await pushRefs(['--force', ...toPush.map((item) => item.name)])
+      for (const item of toPush) {
+        if (rejected.has(item.name)) {
+          warn(`${item.name}: rebaseada em ${baseBranch}, mas o push falhou: ${rejected.get(item.name)}`)
+        } else {
+          info(`${item.name}: rebaseada em ${baseBranch} e ${item.push === 'create' ? 'branch remota criada' : 'force-push feito'}`)
+        }
+      }
     }
 
     if (!runningFromWorkTree) {
@@ -180,15 +192,16 @@ class RepoCleanCommand {
       choices: await buildRemoteBranchChoices(mergedOnRemoteBranches)
     }])
 
+    // Sem --atomic cada ref é independente: uma branch sem permissão não impede as outras.
+    const rejected = remoteBranchesToDelete.length > 0 ? await pushRefs(['--delete', ...remoteBranchesToDelete]) : new Map()
     const notDeleted = []
     for (const branch of remoteBranchesToDelete) {
-      info(`Deletando branch remota ${branch}`)
-      const deleted = await $(`git push origin --delete ${branch} --no-verify`, { reject: false, returnProperty: 'all' })
-      if (deleted.success) continue
-
-      // Uma branch sem permissão não pode interromper a fila: as outras seleções continuam.
+      if (!rejected.has(branch)) {
+        info(`Branch remota ${branch} deletada`)
+        continue
+      }
       notDeleted.push(branch)
-      warn(`Não foi possível deletar ${branch}: ${summarizeGitError(deleted.stderr)}`)
+      warn(`Não foi possível deletar ${branch}: ${rejected.get(branch)}`)
     }
 
     if (notDeleted.length > 0) {
@@ -226,6 +239,28 @@ async function buildRemoteBranchChoices (branches) {
   }))
 }
 
+/**
+ * Faz um único `git push` para várias refs e devolve as rejeitadas, com o motivo.
+ * Lê o `--porcelain`, que traz uma linha `!\t<src>:<dst>\t<motivo>` por ref rejeitada.
+ * @param {string[]} args
+ * @returns {Promise<Map<string, string>>}
+ */
+async function pushRefs (args) {
+  const result = await $(['git', 'push', '--porcelain', '--no-verify', 'origin', ...args], { reject: false, returnProperty: 'all' })
+  const rejected = new Map()
+  for (const line of (result.stdout || '').split('\n')) {
+    const [flag, refs, reason] = line.split('\t')
+    if (flag !== '!' || !refs) continue
+    rejected.set(refs.split(':').pop().replace('refs/heads/', ''), reason || 'rejeitada')
+  }
+  // Falha sem ref rejeitada (rede, auth): todas contam como não enviadas.
+  if (!result.success && rejected.size === 0) {
+    const reason = summarizeGitError(result.stderr)
+    for (const arg of args) if (!arg.startsWith('--')) rejected.set(arg, reason)
+  }
+  return rejected
+}
+
 /** Extrai a linha útil do erro do git, descartando o resto do ruído. */
 function summarizeGitError (stderr) {
   const lines = (stderr || '').split('\n').map((line) => line.trim()).filter(Boolean)
@@ -239,6 +274,13 @@ function summarizeGitError (stderr) {
  * @returns {Promise<{ success: boolean, stderr?: string }>}
  */
 async function updateBaseBranch ({ baseBranch, baseWorkTree, currentBranchName }) {
+  // Caminho rápido: fast-forward a partir do fetch já feito — sem rede e sem checkout.
+  // Só falha quando a base tem commits locais, e aí cai no rebase abaixo.
+  if (!baseWorkTree && currentBranchName !== baseBranch) {
+    const ff = await $(['git', 'fetch', '.', `origin/${baseBranch}:${baseBranch}`], { reject: false, returnProperty: 'all' })
+    if (ff.success) return ff
+  }
+
   const cwd = baseWorkTree ? baseWorkTree.path : undefined
 
   if (!baseWorkTree) {
@@ -246,7 +288,8 @@ async function updateBaseBranch ({ baseBranch, baseWorkTree, currentBranchName }
     if (!checkout.success) return { success: false, stderr: checkout.stderr }
   }
 
-  const pull = await $(`git pull --rebase origin ${baseBranch}`, { cwd, reject: false, returnProperty: 'all' })
+  // O `git fetch` do início já trouxe origin/<base>; `--fork-point` mantém o comportamento do `pull --rebase`.
+  const pull = await $(`git rebase --fork-point origin/${baseBranch}`, { cwd, reject: false, returnProperty: 'all' })
   if (!pull.success) {
     await $('git rebase --abort', { cwd, reject: false, returnProperty: 'all' })
   }
@@ -321,10 +364,10 @@ async function updateDefaultBranch ({ defaultBranch, baseBranch, currentBranchNa
   if (!await localBranchExists(defaultBranch)) return
 
   const result = currentBranchName === defaultBranch
-    ? await $(`git pull --ff-only origin ${defaultBranch}`, { reject: false, returnProperty: 'all' })
+    ? await $(`git merge --ff-only origin/${defaultBranch}`, { reject: false, returnProperty: 'all' })
     : workTreeBranches.has(defaultBranch)
       ? { success: true }
-      : await $(`git fetch origin ${defaultBranch}:${defaultBranch}`, { reject: false, returnProperty: 'all' })
+      : await $(['git', 'fetch', '.', `origin/${defaultBranch}:${defaultBranch}`], { reject: false, returnProperty: 'all' })
 
   if (!result.success) {
     warn(`Não foi possível atualizar ${defaultBranch} por fast-forward — deixando como está`)
