@@ -9,11 +9,11 @@
   },
   "scripts": {
     "test": "node --test",
-    "lint": "npx eslint . --cache",
-    "lint:fix": "npx eslint . --fix --cache",
-    "updates:check": "npx npm-check-updates",
-    "updates:install": "npx npm-check-updates -u && npm install",
-    "dependencies:check": "npx depcheck"
+    "lint": "eslint . --cache",
+    "lint:fix": "eslint . --fix --cache",
+    "updates:check": "bun outdated",
+    "updates:install": "bun update --latest",
+    "dependencies:check": "bunx depcheck"
   },
   "repository": {
     "type": "git",
@@ -58,7 +58,8 @@
     "open": "11.0.4",
     "ora": "9.4.1"
   },
-  "allowScripts": {
-    "unrs-resolver@1.11.1": true
-  }
+  "packageManager": "bun@1.4.5",
+  "trustedDependencies": [
+    "unrs-resolver"
+  ]
 }

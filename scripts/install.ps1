@@ -50,7 +50,7 @@ function Show-Changelog([string]$installDir, [string]$oldHead) {
 
 Write-Step 'Installing theo...'
 
-foreach ($tool in @('git', 'node', 'npm')) {
+foreach ($tool in @('git', 'node')) {
   if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
     throw "$tool is required but was not found in PATH."
   }
@@ -66,10 +66,17 @@ if (-not (Test-Path $installDir)) {
   git -C $installDir reset --hard origin/master --quiet
 }
 
+if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
+  Write-Step 'Installing bun...'
+  Invoke-RestMethod https://bun.sh/install.ps1 | Invoke-Expression
+  $env:Path = "$(Join-Path $HOME '.bun\bin');$env:Path"
+}
+
 Write-Step 'Installing dependencies...'
 Push-Location $installDir
 try {
-  npm install --omit=dev --no-audit --no-fund
+  bun install --frozen-lockfile --production
+  if ($LASTEXITCODE -ne 0) { throw 'bun install failed.' }
 } finally {
   Pop-Location
 }

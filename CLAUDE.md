@@ -9,10 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm test                    # Run all tests (node --test)
+bun run test                # Run all tests (node --test)
 node --test test/path/file.test.js  # Run a single test file
-npm run lint                # Lint with ESLint
-npm run lint:fix            # Auto-fix lint issues
+bun run lint                # Lint with ESLint
+bun run lint:fix            # Auto-fix lint issues
 ```
 
 The CLI itself is run via `theo <command>` after installation, or directly with `node src/index.js <command>` during development.
@@ -52,7 +52,7 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 
 ## Code Style
 
-ESLint with `neostandard` — no semicolons, 2-space indentation, single quotes. Run `npm run lint:fix` before committing.
+ESLint with `neostandard` — no semicolons, 2-space indentation, single quotes. Run `bun run lint:fix` before committing.
 
 ## Cross-Platform
 
