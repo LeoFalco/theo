@@ -50,7 +50,7 @@ function Show-Changelog([string]$installDir, [string]$oldHead) {
 
 Write-Step 'Installing theo...'
 
-foreach ($tool in @('git', 'node')) {
+foreach ($tool in @('git')) {
   if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
     throw "$tool is required but was not found in PATH."
   }

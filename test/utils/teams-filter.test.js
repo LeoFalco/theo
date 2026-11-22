@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import { authorLabel, isMemberOfTeam, toLowercaseSet } from '../../src/utils/utils.js'
 
 test('toLowercaseSet normalizes member identifiers to lowercase', () => {

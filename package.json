@@ -8,12 +8,12 @@
     "theo": "src/index.js"
   },
   "scripts": {
-    "test": "node --test",
-    "lint": "eslint . --cache",
-    "lint:fix": "eslint . --fix --cache",
+    "test": "bun test",
+    "lint": "bun --bun eslint . --cache",
+    "lint:fix": "bun --bun eslint . --fix --cache",
     "updates:check": "bun outdated",
     "updates:install": "bun update --latest",
-    "dependencies:check": "bunx depcheck",
+    "dependencies:check": "bunx --bun depcheck",
     "updates:interactive": "bun update --interactive --latest",
     "audit": "bun audit"
   },
@@ -36,10 +36,10 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@stylistic/eslint-plugin": "5.10.0",
-    "@types/node": "24.19.2",
+    "@types/bun": "1.4.5",
     "eslint": "10.13.0",
     "eslint-plugin-import-x": "4.17.1",
-    "eslint-plugin-n": "18.5.0"
+    "globals": "17.14.0"
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "3.1159.0",
@@ -51,8 +51,6 @@
     "commander": "15.0.0",
     "date-fns": "4.4.0",
     "date-fns-tz": "3.2.0",
-    "dotenv": "18.0.9",
-    "execa": "10.2.1",
     "inquirer": "14.2.5",
     "lodash-es": "4.18.1",
     "node-notifier": "12.1.0",

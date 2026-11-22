@@ -1,11 +1,9 @@
 import { writeFile, mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { $ } from './exec.js'
 import { warn } from './patch-console-log.js'
 
-const CURRENT_DIR_NAME = dirname(fileURLToPath(import.meta.url))
-const LAST_UPDATE_FILE_PATH = join(CURRENT_DIR_NAME, '../../data/last-update.txt')
+const LAST_UPDATE_FILE_PATH = join(import.meta.dir, '../../data/last-update.txt')
 const LAST_UPDATE_FOLDER_PATH = dirname(LAST_UPDATE_FILE_PATH)
 const TODAY = new Date().toISOString().split('T')[0]
 

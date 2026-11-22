@@ -1,6 +1,6 @@
 // @ts-check
 
-import test from 'node:test'
+import { test } from 'bun:test'
 import assert from 'node:assert'
 import { sumTotals, formatDelta } from '../../../src/commands/repos/index.js'
 

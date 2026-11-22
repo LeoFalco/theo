@@ -19,11 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up node
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -38,4 +33,4 @@ jobs:
           GOOGLE_CHAT_WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK_URL }}
         run: |
           gh auth status
-          node src/index.js merged --team GRID --from today --to today --chat
+          bun src/index.js merged --team GRID --from today --to today --chat

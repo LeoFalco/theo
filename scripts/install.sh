@@ -71,9 +71,6 @@ else
   cd - >> /dev/null
 fi
 
-. ~/.nvm/nvm.sh
-nvm use $(cat ~/.theo/.nvmrc) || nvm install $(cat ~/.theo/.nvmrc)
-
 cd ~/.theo
 if ! command -v bun >/dev/null 2>&1 && [ ! -x ~/.bun/bin/bun ]; then
   echo "▷ Installing bun..."

@@ -1,5 +1,5 @@
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { dirname, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { join } from 'node:path'
 import { readdir } from 'node:fs/promises'
 import { warn } from '../core/patch-console-log.js'
 
@@ -14,7 +14,7 @@ import { warn } from '../core/patch-console-log.js'
  * @param {string} [param.requested] - first cli argument
  */
 export async function installCommands ({ program, requested = process.argv[2] }) {
-  const currentDirName = dirname(fileURLToPath(import.meta.url))
+  const currentDirName = import.meta.dir
 
   const names = await readdir(currentDirName, { withFileTypes: true })
     .then((entries) => entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name))
