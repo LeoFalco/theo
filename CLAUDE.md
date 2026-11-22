@@ -15,7 +15,7 @@ bun run lint                # Lint with ESLint
 bun run lint:fix            # Auto-fix lint issues
 ```
 
-The CLI itself is run via `theo <command>` after installation, or directly with `node src/index.js <command>` during development.
+The CLI itself is run via `theo <command>` after installation, or directly with `bun src/index.js <command>` during development. The `theo` alias (`scripts/alias.*`) runs it on Bun with `--no-env-file`, since Bun would otherwise load the `.env` of the current directory over theo's own; `THEO_RUNTIME=node` falls back to Node. Keep the code runnable on both: tests run on `node --test`.
 
 ## Architecture
 

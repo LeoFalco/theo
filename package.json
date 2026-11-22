@@ -13,7 +13,9 @@
     "lint:fix": "eslint . --fix --cache",
     "updates:check": "bun outdated",
     "updates:install": "bun update --latest",
-    "dependencies:check": "bunx depcheck"
+    "dependencies:check": "bunx depcheck",
+    "updates:interactive": "bun update --interactive --latest",
+    "audit": "bun audit"
   },
   "repository": {
     "type": "git",
