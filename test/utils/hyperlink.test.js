@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import chalkTable from 'chalk-table'
 import { hyperlink, supportsHyperlinks } from '../../src/utils/hyperlink.js'
 

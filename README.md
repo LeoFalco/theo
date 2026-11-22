@@ -4,7 +4,6 @@ Kit com ferramentas e scripts para fluxos de trabalho de desenvolvedores
 
 ## Pré-requisitos
 
-- [Node.js](https://nodejs.org) na versão do arquivo `.nvmrc`
 - [Bun](https://bun.sh), instalado automaticamente pelo script de instalação
 - [Git](https://git-scm.com/downloads)
 - [GitHub CLI](https://cli.github.com) autenticado com `gh auth login`
@@ -32,7 +31,7 @@ Rode `theo-update` em qualquer plataforma.
 
 ## Runtime
 
-O `theo` roda no [Bun](https://bun.sh). Se algum comando se comportar diferente, rode com o Node definindo `THEO_RUNTIME=node`, por exemplo `THEO_RUNTIME=node theo merge`.
+O `theo` roda no [Bun](https://bun.sh) e não depende de Node. As configurações vêm só do `~/.theo/.env`; o `.env` da pasta onde você roda o comando é ignorado.
 
 ## Resumo dos comandos disponíveis
 

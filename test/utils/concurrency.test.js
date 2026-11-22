@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import { mapWithConcurrency } from '../../src/utils/concurrency.js'
 
 test('should keep the results aligned with the input order', async () => {

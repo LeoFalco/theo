@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`theo` is an ESM Node.js CLI toolkit (`theo` binary) for developer workflows. It automates Git operations, GitHub PR management, and integration with the Flux project management tool.
+`theo` is an ESM CLI toolkit (`theo` binary) for developer workflows, running on [Bun](https://bun.sh) only (no Node compatibility is kept). It automates Git operations, GitHub PR management, and integration with the Flux project management tool.
 
 ## Commands
 
 ```bash
-bun run test                # Run all tests (node --test)
-node --test test/path/file.test.js  # Run a single test file
+bun test                    # Run all tests (bun:test)
+bun test test/path/file.test.js  # Run a single test file
 bun run lint                # Lint with ESLint
 bun run lint:fix            # Auto-fix lint issues
 ```
 
-The CLI itself is run via `theo <command>` after installation, or directly with `bun src/index.js <command>` during development. The `theo` alias (`scripts/alias.*`) runs it on Bun with `--no-env-file`, since Bun would otherwise load the `.env` of the current directory over theo's own; `THEO_RUNTIME=node` falls back to Node. Keep the code runnable on both: tests run on `node --test`.
+The CLI itself is run via `theo <command>` after installation, or directly with `bun src/index.js <command>` during development. The `theo` alias (`scripts/alias.*`) passes `--env-file=~/.theo/.env`: config comes only from theo's own `.env`, and Bun's default of loading the `.env` of the current directory (the user's project) is turned off. Prefer Bun APIs (`import.meta.dir`, `Bun.file`, `Bun.spawn`) over their Node equivalents.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ Commands live in `src/commands/<name>/index.js`. Each must export a default obje
 
 ### Core Utilities
 
-- **`src/core/exec.js`** — The `$()` helper wraps `execa` for running shell commands. It accepts either a command string or an already split `[file, ...args]` array. The string form goes through `parseCommandString`, which splits on spaces and consumes backslashes, so any argument that may hold a filesystem path must be passed with the array form. Key options: `json: true` parses stdout as JSON, `returnProperty: 'all'` returns `{ exitCode, success, stdout, stderr }`, `reject: false` prevents throwing on non-zero exit, `loading: false` suppresses the spinner.
+- **`src/core/exec.js`** — The `$()` helper runs commands through `Bun.spawn` (no shell). It accepts either a command string or an already split `[file, ...args]` array. The string form goes through `parseCommandString`, which splits on spaces and turns `\ ` into a space inside the token (same rules as execa's, which it replaced), so any argument that may hold a filesystem path must be passed with the array form. Key options: `json: true` parses stdout as JSON, `returnProperty: 'all'` returns `{ exitCode, success, stdout, stderr }`, `reject: false` prevents throwing on non-zero exit, `loading: false` suppresses the spinner.
 - **`src/core/githubFacade.js`** — Octokit-based GitHub GraphQL + REST client. Handles PR queries (with checks, reviews, labels), branch comparison, and PR updates (rebase/update branch).
 - **`src/core/constants.js`** — Team member lists organized by team (CMMS, FSM, QUALITY). Adding/removing members here affects all commands that filter by team.
 - **`src/core/env.js`** — Loads the repo-root `.env` (via dotenv) and exports config read from it. `GITHUB_ORG` is the GitHub organization queried by `repos`, `opened` and `merged`; it has no default, so use `requireGithubOrg()` at call sites to fail with an actionable message when it is unset. See `.env.example`.

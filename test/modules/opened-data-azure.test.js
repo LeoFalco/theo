@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import { normalizeAzurePull } from '../../src/modules/opened-data-azure.js'
 
 const remoteInfo = {

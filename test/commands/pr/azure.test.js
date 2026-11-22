@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import { decodeAzureOutput, parsePullRequestId } from '../../../src/commands/pr/azure.js'
 
 test('should decode utf-8 output', () => {

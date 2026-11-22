@@ -1,7 +1,5 @@
 // @ts-check
 
-import { execa, parseCommandString } from 'execa'
-
 import chalk from 'chalk'
 const { gray } = chalk
 
@@ -10,7 +8,7 @@ const { gray } = chalk
  * @property {boolean} [reject] - reject promise on error (default: true)
  * @property {'stdout' | 'stderr' | 'all'} [returnProperty] - what to return (default: stdout)
  * @property {boolean} [loading] - loading spinner (default: true)
- * @property { 'pipe'| 'inherit' | 'ignore' | 'overlapped' } [stdio] - stdio option for execa (default: pipe)
+ * @property { 'pipe'| 'inherit' | 'ignore' } [stdio] - stdio of the child process (default: pipe)
  * @property {boolean} [json] - parse output as JSON (default: false)
  * @property {string} [cwd] - working directory (default: process.cwd())
  * @property {number} [timeout] - timeout in milliseconds
@@ -78,31 +76,21 @@ export async function $ (command, options) {
     console.log(gray('>'), commandLine)
   }
 
-  const result = await execa(file, commandArguments, {
-    cleanup: true,
-    cwd: options.cwd,
-    reject: options.reject,
-    stdio: options.stdio || 'pipe',
-    encoding: options.encoding,
-    timeout: options.timeout,
-    cancelSignal: options.signal
-
+  const result = await spawn([file, ...commandArguments], options).catch(err => {
+    spinner?.fail()
+    throw err
   })
-    .then(result => {
-      const success = result.exitCode === 0
 
-      if (success) {
-        spinner?.succeed()
-      } else {
-        spinner?.fail()
-      }
+  if (result.exitCode === 0) {
+    spinner?.succeed()
+  } else {
+    spinner?.fail()
+  }
 
-      return result
-    })
-    .catch(err => {
-      spinner?.fail()
-      throw err
-    })
+  if (result.exitCode !== 0 && options.reject) {
+    const stderr = ArrayBuffer.isView(result.stderr) ? new TextDecoder().decode(result.stderr) : result.stderr
+    throw new Error(`Command failed with exit code ${result.exitCode}: ${commandLine}${stderr?.trim() ? `\n\n${stderr.trim()}` : ''}`)
+  }
 
   if (options.returnProperty === 'all') {
     return {
@@ -127,6 +115,51 @@ export async function $ (command, options) {
 
   // json nunca é combinado com encoding: 'buffer'
   return JSON.parse(/** @type {string} */ (returnValueAsString))
+}
+
+/**
+ * Same split as execa's parseCommandString: tokens are separated by spaces, and a
+ * backslash keeps a space inside the token.
+ * @param {string} command
+ */
+export function parseCommandString (command) {
+  const trimmed = command.trim()
+  // keeps a trailing escaped space
+  const text = trimmed.endsWith('\\') && command[command.trimEnd().length] === ' ' ? `${trimmed} ` : trimmed
+  return text.match(/(?:\\ |[^ ])+/g)?.map(token => token.replaceAll('\\ ', ' ')) ?? []
+}
+
+/**
+ * @param {string[]} command
+ * @param {ExecOptions} options
+ * @returns {Promise<{ exitCode: number, stdout: any, stderr: any }>}
+ */
+async function spawn (command, options) {
+  const stdio = options.stdio || 'pipe'
+  let child
+  try {
+    child = Bun.spawn(command, {
+      cwd: options.cwd,
+      stdin: stdio === 'inherit' ? 'inherit' : 'ignore',
+      stdout: stdio,
+      stderr: stdio,
+      timeout: options.timeout,
+      signal: options.signal
+    })
+  } catch (err) {
+    // command not found: same shape as a failed run, so reject: false keeps working
+    if (options.reject) throw err
+    return { exitCode: 127, stdout: '', stderr: String(err.message) }
+  }
+
+  const read = stream => {
+    if (!(stream instanceof ReadableStream)) return Promise.resolve(undefined)
+    const response = new Response(stream)
+    return options.encoding === 'buffer' ? response.bytes() : response.text()
+  }
+  const [stdout, stderr, exitCode] = await Promise.all([read(child.stdout), read(child.stderr), child.exited])
+
+  return { exitCode, stdout, stderr }
 }
 
 /** @param {string | Uint8Array | undefined} value */

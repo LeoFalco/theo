@@ -1,11 +1,5 @@
 function theo () {
-  if [ "$THEO_RUNTIME" = "node" ]; then
-    nvm use $(cat ~/.theo/.nvmrc) >> /dev/null
-    node --no-warnings ~/.theo "$@"
-    nvm use &> /dev/null
-    return
-  fi
-  "$(command -v bun || echo ~/.bun/bin/bun)" --no-env-file ~/.theo/src/index.js "$@"
+  "$(command -v bun || echo ~/.bun/bin/bun)" --env-file="$HOME/.theo/.env" ~/.theo/src/index.js "$@"
 }
 
 function theo-update () {

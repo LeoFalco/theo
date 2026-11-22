@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import { extractLockPid, isProcessAlive } from '../../src/core/worktrees.js'
 
 test('extractLockPid extracts the pid from a claude session lock reason', () => {

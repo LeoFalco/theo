@@ -1,7 +1,7 @@
 // @ts-check
 
 import assert from 'node:assert'
-import test from 'node:test'
+import { test } from 'bun:test'
 import { buildAzurePullRequestUrl, buildAzurePullRequestsUrl, parseRemoteUrl } from '../../../src/commands/pr/remote.js'
 
 test('should identify an azure devops ssh remote', () => {

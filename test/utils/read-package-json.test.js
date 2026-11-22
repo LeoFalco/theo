@@ -1,6 +1,6 @@
 // @ts-check
 
-import test from 'node:test'
+import { test } from 'bun:test'
 import { readPackageJSON } from '../../src/utils/read-package-json.js'
 import assert from 'node:assert'
 

@@ -1,11 +1,10 @@
 import { $ } from '../../core/exec.js'
 import chalk from 'chalk'
 import { info } from '../../core/patch-console-log.js'
-import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-const require = createRequire(import.meta.url)
-const { version } = require('./../../../package.json')
+import packageJSON from '../../../package.json'
+const { version } = packageJSON
 
 const { cyan } = chalk
 class RebaseCommand {
