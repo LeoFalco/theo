@@ -6,22 +6,55 @@ import chalk from 'chalk'
 const { gray } = chalk
 
 /**
+ * @typedef {Object} ExecOptions
+ * @property {boolean} [reject] - reject promise on error (default: true)
+ * @property {'stdout' | 'stderr' | 'all'} [returnProperty] - what to return (default: stdout)
+ * @property {boolean} [loading] - loading spinner (default: true)
+ * @property { 'pipe'| 'inherit' | 'ignore' | 'overlapped' } [stdio] - stdio option for execa (default: pipe)
+ * @property {boolean} [json] - parse output as JSON (default: false)
+ * @property {string} [cwd] - working directory (default: process.cwd())
+ * @property {number} [timeout] - timeout in milliseconds
+ * @property {AbortSignal} [signal] - abort signal
+ * @property {boolean} [disableLog] - do not log command (default: false)
+ * @property {'buffer'} [encoding] - return raw bytes instead of a decoded string, for
+ *   commands that do not write utf-8
+ */
+
+/**
+ * @template [T=string]
+ * @typedef {{ exitCode: number, success: boolean, stdout: T, stderr: T }} ExecResult
+ */
+
+/**
+ * @overload
+ * @param {string | string[]} command
+ * @param {ExecOptions & { returnProperty: 'all', encoding: 'buffer' }} options
+ * @returns {Promise<ExecResult<Uint8Array>>}
+ */
+/**
+ * @overload
+ * @param {string | string[]} command
+ * @param {ExecOptions & { returnProperty: 'all' }} options
+ * @returns {Promise<ExecResult>}
+ */
+/**
+ * @overload
+ * @param {string | string[]} command
+ * @param {ExecOptions & { json: true }} options
+ * @returns {Promise<any>}
+ */
+/**
+ * @overload
+ * @param {string | string[]} command
+ * @param {ExecOptions} [options]
+ * @returns {Promise<string>}
+ */
+/**
  * @param {string | string[]} command - command line, or an already split [file, ...args] tuple.
  *   The string form is parsed with shell-like escaping rules that drop backslashes and split on
  *   spaces, so pass the tuple whenever an argument may hold a filesystem path.
- * @param {Object} [options] - options
- * @param {boolean} [options.reject] - reject promise on error (default: true)
- * @param {string} [options.returnProperty] - stdout | stderr
- * @param {boolean} [options.loading] - loading spinner (default: true)
- * @param { 'pipe'| 'inherit' | 'ignore' | 'overlapped' } [options.stdio] - stdio option for execa (default: pipe)
- * @param {boolean} [options.json] - parse output as JSON (default: false)
- * @param {string} [options.cwd] - working directory (default: process.cwd())
- * @param {number} [options.timeout] - timeout in milliseconds
- * @param {AbortSignal} [options.signal] - abort signal
- * @param {boolean} [options.disableLog] - do not log command (default: false)
- * @param {'buffer'} [options.encoding] - return raw bytes instead of a decoded string, for
- *   commands that do not write utf-8
- * @returns {Promise<string | null | Object>} - command output
+ * @param {ExecOptions} [options]
+ * @returns {Promise<any>} - narrowed by the overloads above
  */
 export async function $ (command, options) {
   options = options || {}
@@ -80,7 +113,7 @@ export async function $ (command, options) {
     }
   }
 
-  const returnValue = result[options.returnProperty]
+  const returnValue = /** @type {string | Uint8Array} */ (result[options.returnProperty])
 
   const returnValueAsString = typeof returnValue === 'string' ? returnValue.trim() : returnValue
 
@@ -92,9 +125,11 @@ export async function $ (command, options) {
     return null
   }
 
-  return JSON.parse(returnValueAsString)
+  // json nunca é combinado com encoding: 'buffer'
+  return JSON.parse(/** @type {string} */ (returnValueAsString))
 }
 
+/** @param {string | Uint8Array | undefined} value */
 function trimOutput (value) {
   if (value == null || ArrayBuffer.isView(value)) return value
 

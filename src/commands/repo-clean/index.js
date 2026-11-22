@@ -16,6 +16,11 @@ const LEGACY_PROTECTED_BRANCHES = ['homolog', 'preview', 'staging', 'wiki/master
 /** How many read-only `git` processes run at the same time. */
 const GIT_CONCURRENCY = 8
 
+/** @typedef {Awaited<ReturnType<typeof listWorkTrees>>[number]} WorkTree */
+/** @typedef {ReturnType<typeof resolvePushMode>} PushMode */
+/** @typedef {{ name: string, commits: number, push: PushMode }} RebaseItem */
+/** @typedef {{ rebase: RebaseItem[], delete: string[] }} Plan */
+
 class RepoCleanCommand {
   /**
    *
@@ -34,6 +39,7 @@ class RepoCleanCommand {
       .action(this.action.bind(this))
   }
 
+  /** @param {{ baseBranch?: string, yes?: boolean }} options */
   async action (options) {
     if (await hasUncommittedChanges()) {
       error('Working tree sujo — faça commit ou stash antes de rodar repo clean.')
@@ -73,6 +79,7 @@ class RepoCleanCommand {
 
     const unmergedCounts = await mapWithConcurrency(candidates, GIT_CONCURRENCY, (branch) => countUnmergedCommits(branch.name, baseBranch))
 
+    /** @type {Plan} */
     const plan = { rebase: [], delete: [] }
     for (const [index, branch] of candidates.entries()) {
       const commits = unmergedCounts[index]
@@ -94,6 +101,7 @@ class RepoCleanCommand {
     }
 
     const conflicted = []
+    /** @type {RebaseItem[]} */
     const toPush = []
     for (const item of plan.rebase) {
       const checkout = await $(`git checkout ${item.name}`, { reject: false, returnProperty: 'all' })
@@ -247,11 +255,12 @@ async function buildRemoteBranchChoices (branches) {
  */
 async function pushRefs (args) {
   const result = await $(['git', 'push', '--porcelain', '--no-verify', 'origin', ...args], { reject: false, returnProperty: 'all' })
+  /** @type {Map<string, string>} */
   const rejected = new Map()
   for (const line of (result.stdout || '').split('\n')) {
     const [flag, refs, reason] = line.split('\t')
     if (flag !== '!' || !refs) continue
-    rejected.set(refs.split(':').pop().replace('refs/heads/', ''), reason || 'rejeitada')
+    rejected.set(refs.slice(refs.indexOf(':') + 1).replace('refs/heads/', ''), reason || 'rejeitada')
   }
   // Falha sem ref rejeitada (rede, auth): todas contam como não enviadas.
   if (!result.success && rejected.size === 0) {
@@ -261,7 +270,10 @@ async function pushRefs (args) {
   return rejected
 }
 
-/** Extrai a linha útil do erro do git, descartando o resto do ruído. */
+/**
+ * Extrai a linha útil do erro do git, descartando o resto do ruído.
+ * @param {string | undefined} stderr
+ */
 function summarizeGitError (stderr) {
   const lines = (stderr || '').split('\n').map((line) => line.trim()).filter(Boolean)
   return lines.find((line) => line.includes('[remote rejected]')) || lines[0] || 'erro desconhecido'
@@ -271,6 +283,7 @@ function summarizeGitError (stderr) {
  * Deixa a base em dia antes de calcular o plano: é ela que decide o que já foi mergeado e é
  * sobre ela que todo mundo é rebaseado. Usa `--rebase` para nunca deixar um merge commit na base.
  * Se der conflito, aborta o rebase para não deixar a base em estado intermediário.
+ * @param {{ baseBranch: string, baseWorkTree: WorkTree | undefined, currentBranchName: string }} params
  * @returns {Promise<{ success: boolean, stderr?: string }>}
  */
 async function updateBaseBranch ({ baseBranch, baseWorkTree, currentBranchName }) {
@@ -313,6 +326,7 @@ function resolvePushMode (branch) {
   return branch.remoteExists ? 'update' : 'create'
 }
 
+/** @param {{ plan: Plan, baseBranch: string, defaultBranch: string }} params */
 function printPlan ({ plan, baseBranch, defaultBranch }) {
   const groups = [
     { title: 'Rebase + force-push', items: plan.rebase.filter((i) => i.push === 'update'), color: cyan },
@@ -358,6 +372,7 @@ async function hasUncommittedChanges () {
 
 /**
  * Mantém a branch de produção em dia sem nunca reescrevê-la: só fast-forward.
+ * @param {{ defaultBranch: string, baseBranch: string, currentBranchName: string, workTreeBranches: Set<string | undefined> }} params
  */
 async function updateDefaultBranch ({ defaultBranch, baseBranch, currentBranchName, workTreeBranches }) {
   if (defaultBranch === baseBranch) return
@@ -374,11 +389,13 @@ async function updateDefaultBranch ({ defaultBranch, baseBranch, currentBranchNa
   }
 }
 
+/** @param {string} branch */
 async function localBranchExists (branch) {
   const result = await $(`git rev-parse --verify --quiet refs/heads/${branch}`, { disableLog: true, loading: false, reject: false, returnProperty: 'all' })
   return result.success
 }
 
+/** @param {string} branch */
 async function remoteBranchExists (branch) {
   const result = await $(`git rev-parse --verify --quiet refs/remotes/origin/${branch}`, { disableLog: true, loading: false, reject: false, returnProperty: 'all' })
   return result.success
