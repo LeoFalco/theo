@@ -30,6 +30,10 @@ Reinicie o terminal ao final da instalação.
 
 Rode `theo-update` em qualquer plataforma.
 
+## Runtime
+
+O `theo` roda no [Bun](https://bun.sh). Se algum comando se comportar diferente, rode com o Node definindo `THEO_RUNTIME=node`, por exemplo `THEO_RUNTIME=node theo merge`.
+
 ## Resumo dos comandos disponíveis
 
 - `theo --help` mostra ajuda e lista comandos disponíveis
