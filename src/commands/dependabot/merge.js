@@ -12,6 +12,7 @@ const MANIFEST_PATTERNS = [
   'go.sum',
   'package.json',
   'package-lock.json',
+  'bun.lock',
   'yarn.lock',
   'pnpm-lock.yaml',
   'Gemfile',

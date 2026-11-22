@@ -59,8 +59,8 @@ Follow these steps to create a Pull Request:
 
 6.  **Preflight Check**: Before creating the PR, run the lint and test suites.
     ```bash
-    npm run lint
-    npm test
+    bun run lint
+    bun run test
     ```
     If any checks fail, address the issues before proceeding to create the PR.
 
