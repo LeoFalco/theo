@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import ora from 'ora'
 import { getOctokit } from '../../core/octokit.js'
-import { $ } from '../../core/exec.js'
+import { getRemoteInfo } from '../pr/remote.js'
 import { info } from '../../core/patch-console-log.js'
 
 const { green, yellow, red, gray, bold } = chalk
@@ -132,72 +132,72 @@ function assessRisk (pr, ciStatus, onlyManifestFiles, commitMessage) {
   return { risk: 'medium', bump, reason: 'unclassified' }
 }
 
-async function getCiStatus (owner, repoName, ref) {
-  try {
-    const { data } = await getOctokit().rest.repos.getCombinedStatusForRef({
-      owner,
-      repo: repoName,
-      ref
-    })
-
-    const checks = await getOctokit().rest.checks.listForRef({
-      owner,
-      repo: repoName,
-      ref
-    })
-
-    const checkConclusions = checks.data.check_runs.map(c => c.conclusion)
-    const statusStates = data.statuses.map(s => s.state)
-    const allConclusions = [...checkConclusions, ...statusStates]
-
-    const failures = [
-      ...checks.data.check_runs
-        .filter(c => c.conclusion === 'failure' || c.conclusion === 'error')
-        .map(c => ({
-          name: c.name,
-          step: c.output?.title || null,
-          message: c.output?.summary?.split('\n')[0] || null
-        })),
-      ...data.statuses
-        .filter(s => s.state === 'failure' || s.state === 'error')
-        .map(s => ({
-          name: s.context,
-          step: null,
-          message: s.description || null
-        }))
-    ]
-
-    if (allConclusions.length === 0) return { status: 'none', failures: [] }
-    if (allConclusions.some(c => c === 'failure' || c === 'error')) return { status: 'failing', failures }
-    if (allConclusions.every(c => c === 'success' || c === 'neutral' || c === 'skipped')) return { status: 'passing', failures: [] }
-    return { status: 'pending', failures: [] }
-  } catch {
-    return { status: 'none', failures: [] }
+// Uma busca traz todos os PRs com o que a avaliação de risco precisa: arquivos, primeiro
+// commit e checks do último commit. Antes eram 4 chamadas REST por PR, um PR de cada vez.
+const DEPENDABOT_PRS_QUERY = `
+  query ($searchQuery: String!, $cursor: String) {
+    search(type: ISSUE, query: $searchQuery, first: 50, after: $cursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes {
+        ... on PullRequest {
+          number
+          title
+          repository { name isFork }
+          labels(first: 20) { nodes { name } }
+          files(first: 100) { nodes { path } }
+          firstCommit: commits(first: 1) { nodes { commit { message } } }
+          lastCommit: commits(last: 1) {
+            nodes {
+              commit {
+                statusCheckRollup {
+                  contexts(first: 100) {
+                    nodes {
+                      __typename
+                      ... on CheckRun { name conclusion title summary }
+                      ... on StatusContext { context state description }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
-}
+`
 
-async function getFirstCommitMessage (owner, repoName, prNumber) {
-  try {
-    const { data } = await getOctokit().rest.pulls.listCommits({
-      owner,
-      repo: repoName,
-      pull_number: prNumber,
-      per_page: 1
-    })
-    return data[0]?.commit?.message || ''
-  } catch {
-    return ''
-  }
-}
+export function getCiStatus (pr) {
+  const contexts = pr.lastCommit.nodes[0]?.commit.statusCheckRollup?.contexts.nodes || []
+  const checkRuns = contexts.filter(c => c.__typename === 'CheckRun')
+  const statuses = contexts.filter(c => c.__typename === 'StatusContext')
 
-async function getChangedFiles (owner, repoName, prNumber) {
-  const { data } = await getOctokit().rest.pulls.listFiles({
-    owner,
-    repo: repoName,
-    pull_number: prNumber,
-    per_page: 100
-  })
-  return data.map(f => f.filename)
+  // A API GraphQL devolve os enums em maiúsculas; a lógica abaixo é a da API REST.
+  const checkConclusions = checkRuns.map(c => c.conclusion?.toLowerCase() ?? null)
+  const statusStates = statuses.map(s => s.state.toLowerCase())
+  const allConclusions = [...checkConclusions, ...statusStates]
+
+  const failures = [
+    ...checkRuns
+      .filter(c => c.conclusion === 'FAILURE' || c.conclusion === 'ERROR')
+      .map(c => ({
+        name: c.name,
+        step: c.title || null,
+        message: c.summary?.split('\n')[0] || null
+      })),
+    ...statuses
+      .filter(s => s.state === 'FAILURE' || s.state === 'ERROR')
+      .map(s => ({
+        name: s.context,
+        step: null,
+        message: s.description || null
+      }))
+  ]
+
+  if (allConclusions.length === 0) return { status: 'none', failures: [] }
+  if (allConclusions.some(c => c === 'failure' || c === 'error')) return { status: 'failing', failures }
+  if (allConclusions.every(c => c === 'success' || c === 'neutral' || c === 'skipped')) return { status: 'passing', failures: [] }
+  return { status: 'pending', failures: [] }
 }
 
 async function approvePr (owner, repoName, prNumber) {
@@ -219,60 +219,28 @@ async function mergePr (owner, repoName, prNumber) {
   })
 }
 
-async function listOrgRepos (owner) {
-  return getOctokit().paginate(getOctokit().rest.repos.listForOrg, {
-    org: owner,
-    sort: 'name',
-    per_page: 100
-  }).then(repos => repos.filter(repo => !repo.archived && !repo.fork))
-}
+async function scanPrs (searchQuery, { skipForks }) {
+  const spinner = ora({ text: 'Searching Dependabot PRs...' }).start()
+  const { search } = await getOctokit().graphql.paginate(DEPENDABOT_PRS_QUERY, { searchQuery })
+  spinner.stop()
 
-async function detectCurrentRepo () {
-  try {
-    const repoSlug = await $('gh repo view --json nameWithOwner -q .nameWithOwner', { loading: false, disableLog: true })
-    if (repoSlug && repoSlug.includes('/')) {
-      const [owner, repo] = repoSlug.split('/')
-      return { owner, repo }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
+  const prsByRepo = Map.groupBy(
+    search.nodes.filter(pr => !(skipForks && pr.repository.isFork)),
+    pr => pr.repository.name
+  )
 
-async function scanPrs (owner, repos) {
   const candidates = []
 
-  for (const repo of repos) {
-    const spinner = ora({ text: `Scanning ${repo.name}...` }).start()
+  for (const [repoName, prs] of prsByRepo) {
+    console.log(`${green('✔')} ${repoName} — ${prs.length} Dependabot PR(s)`)
 
-    const prs = await getOctokit().rest.pulls.list({
-      owner,
-      repo: repo.name,
-      state: 'open',
-      per_page: 100
-    })
-
-    const dependabotPrs = prs.data
-      .filter(pr => pr.user.login === 'dependabot[bot]')
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-
-    if (dependabotPrs.length === 0) {
-      spinner.stop()
-      continue
-    }
-
-    spinner.succeed(`${repo.name} — ${dependabotPrs.length} Dependabot PR(s)`)
-
-    for (const pr of dependabotPrs) {
-      const [ci, files, commitMessage] = await Promise.all([
-        getCiStatus(owner, repo.name, pr.head.sha),
-        getChangedFiles(owner, repo.name, pr.number),
-        getFirstCommitMessage(owner, repo.name, pr.number)
-      ])
+    for (const pr of prs) {
+      const ci = getCiStatus(pr)
+      const files = pr.files.nodes.map(f => f.path)
+      const commitMessage = pr.firstCommit.nodes[0]?.commit.message || ''
 
       const onlyManifest = files.every(f => isManifestFile(f))
-      const assessment = assessRisk(pr, ci.status, onlyManifest, commitMessage)
+      const assessment = assessRisk({ title: pr.title, labels: pr.labels.nodes }, ci.status, onlyManifest, commitMessage)
 
       const riskColor = assessment.risk === 'low'
         ? green
@@ -281,7 +249,7 @@ async function scanPrs (owner, repos) {
           : red
 
       const entry = {
-        repo: repo.name,
+        repo: repoName,
         pr: pr.number,
         title: pr.title,
         ...assessment,
@@ -307,25 +275,24 @@ async function scanPrs (owner, repos) {
 }
 
 export async function mergeAction (options) {
-  const current = await detectCurrentRepo()
-  if (!current) {
+  const current = await getRemoteInfo()
+  if (current?.provider !== 'github') {
     info('Not inside a GitHub repo.')
     return
   }
 
   const { owner } = current
-  let repos
+  const baseQuery = 'is:pr is:open author:app/dependabot sort:created-asc'
 
+  let candidates
   if (options.all) {
-    const spinner = ora(`Fetching repos for ${owner}...`).start()
-    repos = await listOrgRepos(owner)
-    spinner.succeed(`Found ${repos.length} repos`)
+    info(`Scanning all repos of ${owner}`)
+    // Forks e arquivados ficam de fora, como na listagem de repos de antes.
+    candidates = await scanPrs(`org:${owner} archived:false ${baseQuery}`, { skipForks: true })
   } else {
-    info(`Scanning current repo: ${owner}/${current.repo}`)
-    repos = [{ name: current.repo }]
+    info(`Scanning current repo: ${owner}/${current.repository}`)
+    candidates = await scanPrs(`repo:${owner}/${current.repository} ${baseQuery}`, { skipForks: false })
   }
-
-  const candidates = await scanPrs(owner, repos)
 
   if (candidates.length === 0) {
     console.log(yellow('\nNo Dependabot PRs found.'))
