@@ -62,14 +62,27 @@ test('should report a missing command as a failure when reject is false', async 
   assert.equal(result.success, false)
 })
 
-test.if(process.platform === 'win32')('should run a .cmd shim found in PATH, like az', async () => {
+function createShim () {
   const dir = mkdtempSync(join(tmpdir(), 'theo-'))
   writeFileSync(join(dir, 'theo-shim.cmd'), '@echo %1\r\n')
-  const previousPath = process.env.PATH
-  process.env.PATH = `${dir};${previousPath}`
+  return dir
+}
+
+test.if(process.platform === 'win32')('should run a .cmd shim by its path', async () => {
+  const dir = createShim()
+
+  assert.equal(await $([join(dir, 'theo-shim.cmd'), 'hello'], { loading: false, disableLog: true }), 'hello')
+})
+
+test.if(process.platform === 'win32')('should run a .cmd shim found in PATH, like az', async () => {
+  const dir = createShim()
+  // Windows names the variable Path; writing PATH would add a second key next to it
+  const key = Object.keys(process.env).find(name => name.toUpperCase() === 'PATH') ?? 'PATH'
+  const previousPath = process.env[key]
+  process.env[key] = `${dir};${previousPath}`
   try {
     assert.equal(await $(['theo-shim', 'hello'], { loading: false, disableLog: true }), 'hello')
   } finally {
-    process.env.PATH = previousPath
+    process.env[key] = previousPath
   }
 })
