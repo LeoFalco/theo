@@ -138,7 +138,9 @@ async function spawn (command, options) {
   const stdio = options.stdio || 'pipe'
   let child
   try {
-    child = Bun.spawn(command, {
+    // Bun.spawn runs a .cmd shim (az on Windows) by path but does not find it through PATH; Bun.which does
+    const [file, ...args] = command
+    child = Bun.spawn([Bun.which(file, { PATH: process.env.PATH }) ?? file, ...args], {
       cwd: options.cwd,
       stdin: stdio === 'inherit' ? 'inherit' : 'ignore',
       stdout: stdio,
